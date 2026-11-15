@@ -1,4 +1,76 @@
-# Giá Vàng — Website nội bộ (bản mẫu tĩnh)
+# Giá Vàng
+
+Website nội bộ HTML/CSS/JS thuần, không build, không backend: `index.html` → đăng nhập (`login.html`)
+→ **dashboard giá vàng** (`dashboard.html`, phần 0) → quản lý tài khoản cho ADMIN (`admin.html`, từ phần 1 trở đi).
+
+---
+
+## 0. Giá vàng trong dashboard (`dashboard.html`)
+
+Chạy tại `https://hoanganh2503.github.io/gia_vang/` (sau khi đăng nhập). Toàn bộ dữ liệu do **trình duyệt gọi trực tiếp** các API
+miễn phí, không key, có CORS — không dùng GitHub Actions, không có thư mục `data/` do máy tự ghi.
+Đặc tả gốc ở `SPEC.md`; các điểm khác đặc tả được liệt kê ở cuối mục này.
+
+| Khối | Nguồn | Làm mới |
+|---|---|---|
+| 1. Giờ thế giới | `Intl.DateTimeFormat` | mỗi giây |
+| 2. Biểu đồ nến XAU/USD | Widget TradingView Advanced Chart `OANDA:XAUUSD` | liên tục |
+| 3. Vàng thế giới + quy đổi VND | `api.gold-api.com/price/XAU` + fawazahmed0 currency-api (`usd.vnd`) | 10 giây (tỷ giá: 30 phút, nguồn chỉ đổi theo ngày) |
+| 4. DXY | Tự tính từ currency-api (công thức ICE), so với ngày trước | 30 phút |
+| 5. Dầu WTI | Widget TradingView Single Quote `TVC:USOIL` | liên tục |
+| 6. Bạc | `api.gold-api.com/price/XAG`, tỷ lệ vàng/bạc | 10 giây |
+| 7. Biểu đồ trong nước | `vang.today/api/prices?type=…&days=1100` (≈ 1 năm lịch sử) + đường thế giới quy đổi từ currency-api theo ngày | 30 phút |
+| 8. Bảng giá trong nước | `vang.today/api/prices` (SJC, DOJI, PNJ HN, Bảo Tín Minh Châu, VN Gold, VietinBank Gold) + API JSON của PNJ (`edge-cf-api.pnj.io`) | 10 giây |
+
+### Cấu trúc
+
+```text
+dashboard.html   # khung sidebar/header/đăng xuất có sẵn + các khối giá vàng
+css/gold.css     # style riêng cho khối giá vàng, nạp sau css/style.css
+js/dashboard.js  # kiểm tra phiên, chuyển mục; phát sự kiện app:ready khi phiên hợp lệ
+js/gold/         # ES module, chỉ chạy sau app:ready
+  main.js        # khởi động, hẹn giờ làm mới, tạm dừng khi tab ẩn
+  config.js      # URL nguồn, mã sản phẩm, múi giờ, chu kỳ làm mới
+  api.js         # fetchJSON (timeout + nhiều URL dự phòng), cache localStorage
+  format.js      # định dạng số, tiền, thời gian kiểu Việt Nam
+  ui.js          # nhãn trạng thái thẻ, nút Thử lại, nhúng widget TradingView
+  clock.js       # khối 1
+  world-gold.js  # khối 2, 3
+  markets.js     # khối 4, 5, 6
+  domestic.js    # khối 7, 8
+```
+
+Các mục trong sidebar (theo `#hash`): `#overview` Tổng quan (thẻ chỉ số + bảng giá trong nước),
+`#world-chart` Biểu đồ XAU/USD, `#history` Diễn biến trong nước, `#notes` Ghi chú, và Quản trị (chỉ ADMIN).
+Giờ thế giới và thời điểm cập nhật giá nằm trong sidebar. Màn hình ≤ 860 px: sidebar mở bằng nút ☰.
+
+Muốn đổi chu kỳ làm mới: sửa `REFRESH_MS` / `SLOW_REFRESH_MS` trong `js/gold/config.js`.
+
+### Cấu trúc dữ liệu thật đã kiểm tra (15/11/2026)
+
+- **gold-api.com**: `{ "price": 3887.6, "updatedAt": "…Z", "symbol": "XAU" }`.
+- **currency-api**: `{ "date": "2026-11-14", "usd": { "vnd": …, "eur": …, "xau": …, "xag": … } }`. `usd.xau` là ounce/USD → giá = `1 / usd.xau`. Có bản theo ngày `@YYYY-MM-DD`, dùng cho đường thế giới quy đổi trong khối 7 (lấy mẫu mỗi 1/2/7 ngày tùy khoảng xem, kết quả từng ngày được lưu vĩnh viễn trong localStorage).
+- **vang.today**: `prices.<MÃ>.{ name, buy, sell, change_sell, currency }`, đơn vị **đồng/lượng**. Mã chính: `SJL1L10` (SJC miếng), `SJ9999` (nhẫn SJC). Bảng mã → tên ở `VANG_TODAY_CODES` trong `config.js`; mã mới chưa khai báo vẫn hiện với tên gốc.
+- **PNJ**: `data[].{ masp, tensp, giamua, giaban }`, đơn vị **nghìn đồng/chỉ** → nhân 10.000 ra đồng/lượng. `zone=00` là TP.HCM.
+
+### Khác với `SPEC.md`
+
+- **Không dùng GitHub Actions / `scripts/` / `data/*.json`** — theo yêu cầu "chỉ HTML, CSS, JS". GitHub Pages để nguyên *Deploy from a branch* (main, `/`).
+- **Giá trong nước gọi thẳng từ trình duyệt**: PNJ và vang.today đều trả `Access-Control-Allow-Origin: *`, không cần key. BTMC cần key và bị chặn CORS → lấy giá Bảo Tín Minh Châu qua vang.today. Tỷ giá Vietcombank bị chặn CORS → bỏ, dùng tỷ giá thị trường của currency-api.
+- **Lịch sử trong nước** lấy sẵn từ vang.today (≈ 358 ngày) thay vì tự tích lũy.
+- **WTI** dùng widget TradingView vì không có nguồn giá dầu miễn phí, không key mà trình duyệt gọi được (API Ninjas / EIA cần key, không được để lộ trong code).
+- **Thay đổi của vàng/bạc** tính so với giá tham chiếu theo ngày của currency-api (ghi rõ ngày), không phải đúng 24 giờ.
+- **Làm mới 10 giây** cho giá vàng/bạc và giá trong nước. Mỗi giá được tô xanh ▲ nếu lần thay đổi gần nhất là tăng, đỏ ▼ nếu giảm, và nháy nền khi vừa đổi (giá trước lưu trong localStorage `gv:ticks`, nên tải lại trang vẫn giữ màu).
+
+### Rủi ro cần biết
+
+- vang.today và endpoint PNJ là API **không chính thức**, có thể đổi cấu trúc hoặc tắt CORS bất cứ lúc nào. Khi đó khối tương ứng hiện dữ liệu đã lưu (nhãn "Dữ liệu lúc HH:mm") hoặc "Chưa tải được" + nút Thử lại; các khối khác vẫn chạy.
+- Widget TradingView có thể bị trình chặn quảng cáo chặn → hiện khung thông báo kèm link.
+- Mỗi người xem gọi các API này mỗi 10 giây (khoảng 4 request) từ trình duyệt của họ; nếu lượng truy cập lớn, nguồn có thể giới hạn tần suất.
+
+---
+
+# Khu vực nội bộ (bản mẫu tĩnh)
 
 Website mẫu có trang đăng nhập, dashboard và phân luồng hai vai trò **ADMIN** / **MEMBER**.
 Viết bằng HTML, CSS và JavaScript thuần, không framework, không backend, có thể chạy trên GitHub Pages
@@ -33,7 +105,7 @@ hoặc bất kỳ hosting tĩnh nào.
 gia_vang/
 ├── index.html          # Chuyển hướng sang login.html
 ├── login.html          # Trang đăng nhập
-├── dashboard.html      # Nội dung sau đăng nhập (MEMBER + ADMIN)
+├── dashboard.html      # Dashboard giá vàng sau đăng nhập (MEMBER + ADMIN), xem phần 0
 ├── admin.html          # Quản lý tài khoản (chỉ ADMIN)
 ├── tools/
 │   └── hash.html       # Công cụ tạo dòng CSV có mật khẩu đã băm

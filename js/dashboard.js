@@ -35,5 +35,9 @@
   loading.remove();
   app.hidden = false;
 
+  // Báo cho js/gold/main.js (ES module) bắt đầu tải giá — chỉ sau khi phiên hợp lệ.
+  window.__appReady = true;
+  document.dispatchEvent(new Event('app:ready'));
+
   Auth.startWatch();
 })();

@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
   <title>Dashboard · Giá Vàng</title>
   <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/gold.css">
 </head>
 <body>
   <div id="page-loading" class="page-loading">Đang kiểm tra phiên đăng nhập...</div>
@@ -21,11 +23,20 @@
       <nav>
         <ul id="nav-list" class="nav">
           <li><a href="#overview" class="nav__link" data-nav="overview"><span class="nav__icon">◧</span><span class="nav__label">Tổng quan</span></a></li>
-          <li><a href="#prices" class="nav__link" data-nav="prices"><span class="nav__icon">◈</span><span class="nav__label">Bảng giá</span></a></li>
+          <li><a href="#world-chart" class="nav__link" data-nav="world-chart"><span class="nav__icon">◔</span><span class="nav__label">Biểu đồ XAU/USD</span></a></li>
+          <li><a href="#history" class="nav__link" data-nav="history"><span class="nav__icon">↗</span><span class="nav__label">Diễn biến trong nước</span></a></li>
           <li><a href="#notes" class="nav__link" data-nav="notes"><span class="nav__icon">≡</span><span class="nav__label">Ghi chú</span></a></li>
         </ul>
       </nav>
-      <p class="sidebar__foot">Bản mẫu tĩnh · không có máy chủ</p>
+
+      <!-- Khối 1: giờ thế giới -->
+      <section class="sidebar__block" aria-labelledby="h-clocks">
+        <h2 id="h-clocks" class="sidebar__heading">Giờ thế giới</h2>
+        <ul id="clocks" class="clocks"></ul>
+        <p class="sidebar__updated">Cập nhật giá: <time id="last-updated">—</time><br>Tự làm mới mỗi 10 giây</p>
+      </section>
+
+      <p class="sidebar__foot">Bản tĩnh · không có máy chủ</p>
     </aside>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
 
@@ -46,58 +57,68 @@
       </header>
 
       <main id="content" class="content">
-        <!-- Tổng quan -->
+        <!-- ===== Tổng quan: thẻ chỉ số (khối 3, 6, 4, 5) + bảng giá trong nước (khối 8) ===== -->
         <section data-section="overview" hidden>
-          <div class="card card--hero">
-            <h2>Xin chào, <span id="welcome-name"></span> 👋</h2>
-            <p>Đây là khu vực nội dung nội bộ. Bạn chỉ có quyền xem; nội dung do quản trị viên cập nhật.</p>
+          <p class="muted small" style="margin:0">Xin chào, <strong id="welcome-name"></strong>. Giá cập nhật tự động mỗi 10 giây; xanh ▲ = vừa tăng, đỏ ▼ = vừa giảm.</p>
+
+          <div class="metrics" aria-label="Chỉ số thị trường">
+            <article id="card-gold" class="card metric">
+              <header class="card__head"><h2>Vàng thế giới (XAU)</h2><span class="badge" data-badge hidden></span></header>
+              <div data-body><div class="skeleton"></div></div>
+              <footer class="card__foot">Nguồn: <a href="https://gold-api.com" target="_blank" rel="noopener">gold-api.com</a>, <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener">currency-api</a> · <time data-at>—</time></footer>
+            </article>
+
+            <article id="card-silver" class="card metric">
+              <header class="card__head"><h2>Bạc thế giới (XAG)</h2><span class="badge" data-badge hidden></span></header>
+              <div data-body><div class="skeleton"></div></div>
+              <footer class="card__foot">Nguồn: <a href="https://gold-api.com" target="_blank" rel="noopener">gold-api.com</a> · <time data-at>—</time></footer>
+            </article>
+
+            <article id="card-dxy" class="card metric">
+              <header class="card__head"><h2>Chỉ số DXY</h2><span class="badge" data-badge hidden></span></header>
+              <div data-body><div class="skeleton"></div></div>
+              <footer class="card__foot">Nguồn: tự tính từ <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener">currency-api</a> · <time data-at>—</time></footer>
+            </article>
+
+            <article id="card-wti" class="card metric">
+              <header class="card__head"><h2>Dầu WTI</h2></header>
+              <div id="wti-widget" class="wti-widget"></div>
+              <footer class="card__foot">Nguồn: <a href="https://www.tradingview.com/symbols/TVC-USOIL/" target="_blank" rel="noopener">TradingView TVC:USOIL</a> · trực tiếp</footer>
+            </article>
           </div>
 
-          <div class="stats">
-            <div class="stat">
-              <span class="stat__label">SJC mua vào</span>
-              <span class="stat__value">—</span>
-              <span class="stat__hint">Dữ liệu mẫu</span>
-            </div>
-            <div class="stat">
-              <span class="stat__label">SJC bán ra</span>
-              <span class="stat__value">—</span>
-              <span class="stat__hint">Dữ liệu mẫu</span>
-            </div>
-            <div class="stat">
-              <span class="stat__label">Cập nhật</span>
-              <span class="stat__value">—</span>
-              <span class="stat__hint">Thay bằng nội dung thật</span>
-            </div>
-          </div>
-
-          <div class="card notice">
-            <strong>Lưu ý:</strong> Trang này là bản mẫu chạy hoàn toàn trên trình duyệt.
-            Nội dung trong file HTML có thể được xem bởi bất kỳ ai truy cập trực tiếp đường dẫn.
-            Không đặt thông tin thật sự bí mật ở đây.
+          <div id="domestic-table" class="card">
+            <header class="card__head"><h2>Giá vàng trong nước</h2><span class="badge" data-badge hidden></span></header>
+            <div data-body><div class="skeleton skeleton--tall"></div></div>
+            <footer class="card__foot">Nguồn: <a href="https://www.vang.today" target="_blank" rel="noopener">vang.today</a>, <a href="https://giavang.pnj.com.vn" target="_blank" rel="noopener">PNJ</a> · tải lúc <time data-at>—</time></footer>
           </div>
         </section>
 
-        <!-- Bảng giá -->
-        <section data-section="prices" hidden>
-          <div class="card">
-            <div class="card__head">
-              <h2>Bảng giá (mẫu)</h2>
-              <span class="muted">Đơn vị: nghìn đồng/lượng</span>
+        <!-- ===== Khối 2: biểu đồ nến ===== -->
+        <section data-section="world-chart" hidden>
+          <div class="card tv-card">
+            <div id="tv-gold" class="tv-chart"></div>
+          </div>
+        </section>
+
+        <!-- ===== Khối 7: diễn biến trong nước ===== -->
+        <section data-section="history" hidden>
+          <div id="domestic-chart" class="card">
+            <header class="card__head">
+              <h2 class="h-sm">Giá bán trong nước và thế giới quy đổi</h2>
+              <span class="badge" data-badge hidden></span>
+              <div class="seg" role="group" aria-label="Khoảng thời gian">
+                <button type="button" data-range="1m" aria-pressed="false">1 tháng</button>
+                <button type="button" data-range="3m" aria-pressed="false">3 tháng</button>
+                <button type="button" data-range="1y" aria-pressed="true">1 năm</button>
+                <button type="button" data-range="all" aria-pressed="false">Tất cả</button>
+              </div>
+            </header>
+            <div data-body class="chart-box">
+              <p data-msg class="chart-msg" hidden></p>
+              <canvas aria-label="Biểu đồ giá bán SJC, nhẫn 9999 và giá thế giới quy đổi theo ngày" role="img"></canvas>
             </div>
-            <div class="table-wrap">
-              <table class="table">
-                <thead>
-                  <tr><th>Loại</th><th class="num">Mua vào</th><th class="num">Bán ra</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>Vàng miếng (mẫu)</td><td class="num">0</td><td class="num">0</td></tr>
-                  <tr><td>Nhẫn trơn 9999 (mẫu)</td><td class="num">0</td><td class="num">0</td></tr>
-                  <tr><td>Nữ trang 18K (mẫu)</td><td class="num">0</td><td class="num">0</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p class="muted small">Các con số trên chỉ là chỗ trống. Hãy thay bằng nội dung của bạn trong <code>dashboard.html</code>.</p>
+            <footer class="card__foot">Đơn vị: đồng/lượng. Nguồn: <a href="https://www.vang.today" target="_blank" rel="noopener">vang.today</a> (lịch sử theo ngày), thế giới quy đổi từ currency-api · <time data-at>—</time></footer>
           </div>
         </section>
 
@@ -114,6 +135,16 @@
           </div>
         </section>
       </main>
+
+      <footer class="site-foot">
+        <p>Nguồn dữ liệu:
+          <a href="https://gold-api.com" target="_blank" rel="noopener">gold-api.com</a> ·
+          <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener">fawazahmed0/exchange-api</a> ·
+          <a href="https://www.vang.today" target="_blank" rel="noopener">vang.today</a> ·
+          <a href="https://giavang.pnj.com.vn" target="_blank" rel="noopener">PNJ</a> ·
+          <a href="https://www.tradingview.com/widget/" target="_blank" rel="noopener">TradingView</a></p>
+        <p>Thông tin chỉ mang tính tham khảo, không phải lời khuyên đầu tư.</p>
+      </footer>
     </div>
   </div>
 
@@ -122,11 +153,13 @@
     <li><a href="admin.html" class="nav__link"><span class="nav__icon">⚙</span><span class="nav__label">Quản trị</span></a></li>
   </template>
 
-
   <script src="js/csv.js"></script>
   <script src="js/password.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/app.js"></script>
   <script src="js/dashboard.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <!-- Giá vàng: chỉ khởi động sau khi dashboard.js xác nhận phiên (sự kiện app:ready) -->
+  <script type="module" src="js/gold/main.js"></script>
 </body>
 </html>

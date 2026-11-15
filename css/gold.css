@@ -1,0 +1,150 @@
+/* =========================================================
+   gold.css — các khối giá vàng trong dashboard.html.
+   Nạp SAU css/style.css; dùng lại biến màu, .card, .btn, .table, .badge ở đó.
+   ========================================================= */
+
+:root {
+  --up: var(--success);
+  --down: var(--danger);
+  --c-sjc: #c48a00;
+  --c-ring: #c2410c;
+  --c-world: #2563eb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-sjc: #f2c14e;
+    --c-ring: #fb923c;
+    --c-world: #60a5fa;
+  }
+}
+
+/* Vùng nội dung: rộng hơn để chứa 4 thẻ, và là container cho @container bên dưới */
+.content { max-width: 1320px; container-type: inline-size; }
+.unit, .metric__value, .table .num, .clock__time { font-variant-numeric: tabular-nums; }
+
+/* ---------- Sidebar: giờ thế giới (khối 1) + thời điểm cập nhật ---------- */
+.sidebar { overflow-y: auto; }
+.sidebar__block { border-top: 1px solid rgb(255 255 255 / .08); padding-top: 1rem; }
+.sidebar__heading {
+  margin: 0 0 .4rem .75rem; font-size: .7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--sidebar-text); opacity: .6;
+}
+.clocks { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.clock {
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: .5rem;
+  padding: .3rem .75rem; border-radius: 6px; color: var(--sidebar-text);
+}
+.clock:hover { background: var(--sidebar-active); }
+.clock__city { font-size: .85rem; }
+.clock__time { font-size: .92rem; font-weight: 700; color: #fff; }
+.clock__date { grid-column: 1 / -1; font-size: .7rem; opacity: .6; }
+.clock--night .clock__city::after { content: " ☾"; opacity: .6; }
+.sidebar__updated { margin: .5rem .75rem 0; font-size: .75rem; color: var(--sidebar-text); opacity: .8; }
+.sidebar__updated time { color: #fff; font-weight: 600; }
+
+/* ---------- Thẻ chỉ số ---------- */
+.metrics { display: grid; gap: 1rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container (max-width: 1000px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 540px) { .metrics { grid-template-columns: 1fr; } }
+
+.metric { display: flex; flex-direction: column; padding: 1rem 1.1rem; min-width: 0; }
+.metric .card__head h2, .card__head h2.h-sm { font-size: .95rem; }
+.metric__value { margin: 0; font-size: 1.65rem; font-weight: 750; line-height: 1.2; }
+.unit { font-size: .8rem; font-weight: 500; color: var(--muted); }
+.card__foot { margin-top: .75rem; font-size: .75rem; color: var(--muted); }
+.metric .card__foot { margin-top: auto; padding-top: .75rem; }
+
+.change { font-weight: 600; font-size: .88rem; }
+.change small { font-weight: 400; color: var(--muted); }
+.change.up { color: var(--up); }
+.change.down { color: var(--down); }
+.change.flat { color: var(--muted); }
+
+.kv { margin: .75rem 0 0; display: grid; gap: 2px; }
+.kv > div {
+  display: flex; justify-content: space-between; gap: .5rem;
+  padding: .25rem 0; border-top: 1px dashed var(--border); font-size: .85rem;
+}
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 600; text-align: right; }
+
+.note { margin: .6rem 0 0; font-size: .8rem; color: var(--muted); }
+.wti-widget { min-height: 90px; }
+
+.badge--warn { color: var(--primary); background: var(--primary-soft); }
+
+/* ---------- Trạng thái tải / lỗi ---------- */
+.skeleton {
+  height: 72px; border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s infinite linear;
+}
+.skeleton--tall { height: 220px; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+.error-box {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  padding: .75rem; border-radius: 8px; background: var(--surface-2); color: var(--muted);
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- Biểu đồ nến TradingView (khối 2) ---------- */
+.tv-card { padding: .5rem; }
+.tv-chart { height: max(500px, calc(100vh - 150px)); }
+.tv-chart .tradingview-widget-container,
+.tv-chart .tradingview-widget-container__widget { height: 100%; width: 100%; }
+@media (max-width: 640px) { .tv-chart { height: max(360px, calc(100vh - 130px)); } }
+
+.tv-fallback {
+  height: 100%; min-height: 90px; display: grid; place-content: center; gap: .5rem; text-align: center;
+  padding: 1rem; border-radius: 8px; background: var(--surface-2); color: var(--muted);
+}
+.tv-fallback p { margin: 0; }
+
+/* ---------- Bảng giá trong nước (khối 8) ---------- */
+.table td { vertical-align: top; }
+.table tfoot td { color: var(--muted); font-style: italic; border-bottom: 0; }
+.table .short { display: none; }
+@media (max-width: 520px) {
+  .table { font-size: .82rem; }
+  .table th, .table td { padding: .5rem .4rem; }
+  .table .full { display: none; }
+  .table .short { display: inline; }
+}
+.gap-line { margin: .75rem 0 0; font-size: .9rem; }
+
+/* ---------- Diễn biến trong nước (khối 7) ---------- */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button {
+  font: inherit; font-size: .8rem; padding: .3rem .7rem; cursor: pointer;
+  border: 0; background: var(--surface); color: var(--muted);
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button[aria-pressed="true"] { background: var(--primary); color: #fff; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .seg button[aria-pressed="true"] { color: #1a1e29; } }
+
+.chart-box { position: relative; height: max(360px, calc(100vh - 280px)); }
+.chart-msg {
+  position: absolute; inset: 0; margin: 0; padding: 1rem;
+  display: grid; place-content: center; text-align: center; color: var(--muted);
+}
+
+/* ---------- Chân trang ---------- */
+.site-foot { padding: 0 1.5rem 1.5rem; font-size: .78rem; color: var(--muted); max-width: 1320px; }
+.site-foot p { margin: .25rem 0; }
+@media (max-width: 860px) { .site-foot { padding: 0 1rem 1rem; } }
+
+/* ---------- Màu lên/xuống theo lần cập nhật gần nhất ---------- */
+.tick { border-radius: 4px; padding: 0 .15em; margin: 0 -.15em; }
+.tick.up { color: var(--up); }
+.tick.down { color: var(--down); }
+.tick__arrow { font-size: .65em; margin-right: .25em; vertical-align: .15em; }
+.flash-up { animation: flash-up 1.6s ease-out; }
+.flash-down { animation: flash-down 1.6s ease-out; }
+@keyframes flash-up { from { background: var(--success-soft); } to { background: transparent; } }
+@keyframes flash-down { from { background: var(--danger-soft); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .flash-up, .flash-down { animation: none; } }
