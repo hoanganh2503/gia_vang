@@ -1,0 +1,458 @@
+// bang-gia.js — điểm vào của bang-gia.html (màn hình bảng giá).
+// Dùng lại các hàm tải dữ liệu sẵn có; không import engine.js để tránh trùng hẹn giờ/sự kiện của dashboard.
+import { REFRESH_MS, SLOW_REFRESH_MS, URLS, TZ_VN, TV_SYMBOLS } from './config.js';
+import { fetchJSON, withCache } from './api.js';
+import { fmtDateISO, todayVN, fmtVND, escapeHTML } from './format.js';
+import { mountTradingView } from './ui.js';
+import { loadSpot, loadFx, worldVndPerLuong } from './world-gold.js';
+import { computeDXY } from './markets.js';
+import { loadDomestic } from './domestic.js';
+
+const $ = (id) => document.getElementById(id);
+const valid = (n) => typeof n === 'number' && Number.isFinite(n) && n > 0;
+const okPrice = (n) => typeof n === 'number' && Number.isFinite(n) && n > 1e7 && n < 1e9;
+
+// Loại vàng cho biểu đồ dưới (mã vang.today)
+const TYPES = [
+  { code: 'SJL1L10', tab: 'Miếng SJC', title: 'VÀNG MIẾNG SJC' },
+  { code: 'SJ9999', tab: 'Nhẫn SJC', title: 'NHẪN SJC 9999' },
+  { code: 'DOJINHTV', tab: 'Nhẫn DOJI', title: 'NHẪN DOJI HƯNG THỊNH VƯỢNG' },
+  { code: 'BT9999NTT', tab: 'Nhẫn BTMC', title: 'NHẪN TRÒN TRƠN BẢO TÍN MINH CHÂU' },
+];
+const HIST_DAYS = 400;
+
+// Mã TradingView: lấy giá + thay đổi trong ngày (so với phiên trước)
+const TV = { xau: 'OANDA:XAUUSD', xag: 'TVC:SILVER', dxy: 'TVC:DXY', wti: 'NYMEX:CL1!' };
+
+// Số kiểu Mỹ: 4,714.11
+const nf = (d) => new Intl.NumberFormat('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const NF = { 0: nf(0), 2: nf(2) };
+const fmtUS = (n, d = 2) => (Number.isFinite(n) ? (NF[d] || nf(d)).format(n) : '—');
+const signed = (n, d = 2) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtUS(Math.abs(n), d)}`;
+
+const state = { spot: null, fx: null, dom: null, tv: null, hist: {} };
+let typeCode = TYPES[0].code;
+let days = 30;
+let chart = null;
+
+// ---------- Đồng hồ LED (giờ Việt Nam) ----------
+const fTime = new Intl.DateTimeFormat('vi-VN', { timeZone: TZ_VN, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const fDate = new Intl.DateTimeFormat('vi-VN', { timeZone: TZ_VN, weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+function tickClock() {
+  const d = new Date();
+  renderTickerTitle();
+  // Mỗi ký tự một ô rộng cố định → khung không đổi độ rộng khi số nhảy
+  $('led-time').innerHTML = [...fTime.format(d)]
+    .map((ch) => `<span class="${ch === ':' ? 'c' : 'd'}">${ch}</span>`).join('');
+  $('led-date').textContent = fDate.format(d).toUpperCase();
+}
+
+// ---------- Widget TradingView ----------
+// Khung nến của biểu đồ trái (mã interval của TradingView), nhớ lựa chọn trong trình duyệt này
+const INTERVALS = [
+  ['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1H'], ['240', '4H'], ['D', '1D'], ['W', '1W'], ['M', '1M'],
+];
+let interval = '60';
+try { const v = localStorage.getItem('gv:bg:interval'); if (INTERVALS.some(([k]) => k === v)) interval = v; } catch { /* bỏ qua */ }
+
+function renderIntervals() {
+  $('tv-intervals').innerHTML = INTERVALS.map(([k, label]) =>
+    `<button type="button" data-interval="${k}" aria-pressed="${k === interval}">${label}</button>`).join('');
+}
+
+function mountChart() {
+  mountTradingView($('tv-chart'), 'advanced-chart', {
+    autosize: true,
+    symbol: TV_SYMBOLS.gold,
+    interval,
+    timezone: TZ_VN,
+    theme: 'light',
+    style: '1',
+    locale: 'vi_VN',
+    hide_top_toolbar: true,   // chừa góc trên trái cho đồng hồ
+    hide_legend: true,
+    hide_side_toolbar: true,
+    hide_volume: false,
+    allow_symbol_change: false,
+    calendar: false,
+    support_host: 'https://www.tradingview.com',
+  }, { link: 'https://www.tradingview.com/symbols/XAUUSD/?exchange=OANDA', label: 'XAU/USD' });
+
+}
+
+// ---------- Dữ liệu ----------
+// Giá + thay đổi trong ngày của các mã TradingView; mã nào lỗi thì bỏ qua mã đó
+function loadTv() {
+  return withCache('bg:tv', async () => {
+    const keys = Object.keys(TV);
+    const res = await Promise.allSettled(keys.map((k) => fetchJSON(URLS.tvQuote(TV[k]), { bust: true })));
+    const out = {};
+    res.forEach((r, i) => {
+      const v = r.value;
+      if (r.status === 'fulfilled' && valid(v?.close)) out[keys[i]] = { close: v.close, chg: Number(v.change_abs) || 0, pct: Number(v.change) || 0 };
+    });
+    if (!Object.keys(out).length) throw new Error('TradingView scanner không trả dữ liệu');
+    return out;
+  });
+}
+
+// Giá bạc Phú Quý (file data/phuquy.json do GitHub Actions cập nhật); dòng "BẠC MIẾNG PHÚ QUÝ 999 1 LƯỢNG"
+function loadPhuQuy() {
+  if (!URLS.phuquy.length) return Promise.reject(new Error('Chưa cấu hình URLS.phuquy'));
+  return withCache('bg:pq', async () => {
+    const j = await fetchJSON(URLS.phuquy, { bust: true });
+    if (!j?.success || !Array.isArray(j.items)) throw new Error(j?.error || 'Phú Quý trả dữ liệu lạ');
+    const norm = (s) => s.normalize('NFC').toUpperCase();
+    const item = j.items.find((i) => /MIẾNG/.test(norm(i.name)) && /(^|\s)1 LƯỢNG($|\s|,)/.test(norm(i.name)))
+      || j.items.find((i) => /LƯỢNG/.test(norm(i.unit || '')));
+    if (!item) throw new Error('Không thấy dòng bạc 1 lượng');
+    return { buy: item.buy, sell: item.sell, name: item.name, lastTime: j.lastTime, lastDate: j.lastDate };
+  });
+}
+
+function loadHist(code) {
+  return withCache(`bg:h:${code}`, async () => {
+    const j = await fetchJSON(URLS.vangTodayHistory(code, HIST_DAYS), { timeout: 15000 });
+    return (j.history || [])
+      .map((h) => ({ date: h.date, buy: Number(h.prices?.[code]?.buy), sell: Number(h.prices?.[code]?.sell) }))
+      .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date) && (okPrice(r.buy) || okPrice(r.sell)));
+  });
+}
+
+async function settle(key, p) {
+  try { state[key] = await p; } catch (e) { console.warn(`[bang-gia] ${key}:`, e?.message || e); }
+}
+
+// ---------- Bảng chỉ số ----------
+// "▲ +7.095 (+0.18%)" — d: số chữ số thập phân của mức thay đổi tuyệt đối
+function setChange(el, diff, pct, d = 2) {
+  const base = el.className.replace(/ (up|down|flat)/g, '');
+  if (!Number.isFinite(diff)) { el.textContent = '—'; el.className = `${base} flat`; return; }
+  const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+  const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '■';
+  const p = Number.isFinite(pct) ? ` (${pct > 0 ? '+' : pct < 0 ? '−' : ''}${fmtUS(Math.abs(pct))}%)` : '';
+  el.textContent = `${arrow} ${signed(diff, d)}${p}`;
+  el.className = `${base} ${cls}`;
+  el.title = 'So với phiên trước';
+}
+
+// Ghi giá trị; nếu số hiển thị khác lần trước thì nháy 1 cái và đổi màu theo hướng
+// (tăng xanh lá, giảm đỏ). Màu giữ nguyên tới lần thay đổi kế tiếp.
+const lastShown = {};
+// src: tên nguồn của số; đổi nguồn (vd. từ dự phòng sang TradingView) thì không tính là tăng/giảm.
+function setValue(id, num, text, src = '') {
+  const el = $(id);
+  el.textContent = text;
+  const prev = lastShown[id];
+  if (!Number.isFinite(num)) return;
+  lastShown[id] = { num, text, src };
+  if (!prev || prev.text === text) return;
+  if (prev.src !== src) { el.classList.remove('tick-up', 'tick-down', 'flash-up', 'flash-down'); return; }
+  const dir = num > prev.num ? 'up' : 'down';
+  el.classList.remove('tick-up', 'tick-down', 'flash-up', 'flash-down');
+  void el.offsetWidth; // khởi động lại hiệu ứng nháy
+  el.classList.add(`tick-${dir}`, `flash-${dir}`);
+}
+
+// Giá trực tiếp từ gold-api, mức thay đổi so với giá đóng cửa phiên trước (TradingView);
+// không có TradingView thì so với tỷ giá ngày trước của currency-api.
+function spotChange(price, tv, fxRef) {
+  if (!valid(price)) return { diff: NaN, pct: NaN };
+  const ref = tv ? tv.close - tv.chg : fxRef;
+  if (!valid(ref)) return { diff: NaN, pct: NaN };
+  return { diff: price - ref, pct: ((price - ref) / ref) * 100 };
+}
+
+function renderQuotes() {
+  const tv = state.tv?.data || {};
+  const fx = state.fx?.data?.latest;
+  // Ưu tiên giá TradingView (cùng nguồn OANDA với biểu đồ nến); lỗi thì dùng gold-api
+  const xau = tv.xau?.close ?? state.spot?.data?.xau?.price;
+  const xag = tv.xag?.close ?? state.spot?.data?.xag?.price;
+
+  // Số chữ số thập phân theo cách TradingView hiển thị: vàng 3, DXY 3, WTI 2, bạc 5
+  const xauSrc = tv.xau ? 'tv' : 'gold-api';
+  setValue('v-gold', xau, fmtUS(xau, 3), xauSrc);
+  const g = spotChange(xau, tv.xau, valid(fx?.xau) ? 1 / fx.xau : NaN);
+  setChange($('c-gold'), g.diff, g.pct, 3);
+
+  const perLuong = worldVndPerLuong(xau, fx?.vnd);
+  setValue('v-convert', perLuong, valid(perLuong) ? fmtUS(perLuong / 1e6) : '—', xauSrc);
+
+  if (tv.dxy) {
+    setValue('v-dxy', tv.dxy.close, fmtUS(tv.dxy.close, 3), 'tv');
+    setChange($('c-dxy'), tv.dxy.chg, tv.dxy.pct, 3);
+  } else { // dự phòng: DXY tự tính từ tỷ giá theo ngày
+    const now = computeDXY(fx);
+    const prev = computeDXY(state.fx?.data?.prev);
+    setValue('v-dxy', now, fmtUS(now, 3), 'fx');
+    const ok = valid(now) && valid(prev);
+    setChange($('c-dxy'), ok ? now - prev : NaN, ok ? ((now - prev) / prev) * 100 : NaN, 3);
+  }
+
+  setValue('v-wti', tv.wti?.close, fmtUS(tv.wti?.close, 2));
+  setChange($('c-wti'), tv.wti ? tv.wti.chg : NaN, tv.wti?.pct, 2);
+
+  setValue('v-silver', xag, fmtUS(xag, 5), tv.xag ? 'tv' : 'gold-api');
+  const sv = spotChange(xag, tv.xag, valid(fx?.xag) ? 1 / fx.xag : NaN);
+  setChange($('c-silver'), sv.diff, sv.pct, 5);
+
+  // Bạc Phú Quý 1 lượng (VND)
+  const pq = state.pq?.data;
+  setValue('v-pq-buy', pq?.buy, pq?.buy ? fmtUS(pq.buy, 0) : '—');
+  setValue('v-pq-sell', pq?.sell, pq?.sell ? fmtUS(pq.sell, 0) : '—');
+  $('pq-label').title = !URLS.phuquy.length
+    ? 'Chưa cấu hình proxy Phú Quý (URLS.phuquy trong js/gold/config.js)'
+    : pq ? `Nguồn: giabac.phuquygroup.vn — ${pq.name}. Phú Quý cập nhật lúc ${pq.lastTime || '—'} ${pq.lastDate || ''}${state.pq.cached ? ' (đang hiện dữ liệu đã lưu)' : ''}`
+      : 'Nguồn: giabac.phuquygroup.vn — chưa tải được';
+}
+
+// ---------- Biểu đồ giá vàng trong nước ----------
+function renderTabs() {
+  $('tabs-type').innerHTML = TYPES.map((t) =>
+    `<button type="button" data-type="${t.code}" aria-pressed="${t.code === typeCode}">${t.tab}</button>`).join('');
+  $('sjc-title').textContent = `BIỂU ĐỒ GIÁ ${TYPES.find((t) => t.code === typeCode).title}`;
+  document.querySelectorAll('[data-days]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === days)));
+}
+
+const fmtTr = (v) => fmtUS(v / 1e6, 1);
+
+function renderChart() {
+  const canvas = $('sjc-chart');
+  const msg = $('sjc-msg');
+  const show = (text) => { canvas.hidden = true; msg.textContent = text; msg.hidden = false; };
+
+  if (!window.Chart) { show('Không tải được thư viện biểu đồ (Chart.js).'); return; }
+  const res = state.hist[typeCode];
+  if (!res) { show('Đang tải dữ liệu…'); return; }
+
+  const map = new Map(res.data.map((r) => [r.date, r]));
+  // Điểm "hôm nay" lấy từ giá hiện tại trong nước (vang.today + PNJ)
+  const now = state.dom?.data?.items?.find((i) => i.code === typeCode);
+  const today = todayVN();
+  if (now && (okPrice(Number(now.buy)) || okPrice(Number(now.sell)))) {
+    map.set(today, { date: today, buy: Number(now.buy), sell: Number(now.sell) });
+  }
+  const from = todayVN(-days);
+  const rows = [...map.values()].filter((r) => r.date >= from).sort((a, b) => a.date.localeCompare(b.date));
+  if (rows.length < 2) { show('Chưa đủ dữ liệu cho khoảng thời gian này.'); return; }
+  canvas.hidden = false;
+  msg.hidden = true;
+
+  const labels = rows.map((r) => fmtDateISO(r.date).slice(0, days > 90 ? 10 : 5));
+  const buy = rows.map((r) => (okPrice(r.buy) ? r.buy : null));
+  const sell = rows.map((r) => (okPrice(r.sell) ? r.sell : null));
+
+  if (chart) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = buy;
+    chart.data.datasets[1].data = sell;
+    chart.update('none');
+    return;
+  }
+  const line = (label, data, color) => ({
+    label, data, borderColor: color, backgroundColor: color, borderWidth: 2,
+    pointRadius: 0, pointHoverRadius: 4, tension: 0.2, spanGaps: true,
+  });
+  chart = new window.Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [line('Mua vào', buy, '#dc2626'), line('Bán ra', sell, '#16a34a')] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', align: 'center', labels: { usePointStyle: true, pointStyle: 'line', boxWidth: 24, color: '#1c2130' } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : fmtUS(c.parsed.y, 0)} đ/lượng` } },
+      },
+      scales: {
+        x: { ticks: { color: '#6b7280', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
+        y: {
+          position: 'left',
+          title: { display: true, text: 'triệu đ/lượng', color: '#6b7280' },
+          ticks: { color: '#6b7280', callback: (v) => fmtTr(v) },
+          grid: { color: '#eef0f3' },
+        },
+      },
+    },
+  });
+}
+
+async function ensureHist(code, force = false) {
+  if (!force && state.hist[code]) return;
+  try { state.hist[code] = await loadHist(code); } catch (e) { console.warn('[bang-gia] lịch sử:', e?.message || e); }
+}
+
+// ---------- Bảng giá trong nước tự cuộn (khối dưới) ----------
+const TYPE_ORDER = { sjc_bar: 0, ring_9999: 1, other: 2 };
+const SOURCE_ORDER = ['SJC', 'PNJ TP.HCM', 'PNJ Hà Nội', 'DOJI Hà Nội', 'DOJI TP.HCM', 'DOJI', 'Bảo Tín Minh Châu'];
+const VISIBLE_ROWS = 3;
+const SECONDS_PER_ROW = 3;
+let tickerKeys = '';
+
+const vnd = (n) => (okPrice(n) ? fmtVND(n) : '—');
+const spreadK = (i) => (okPrice(i.buy) && okPrice(i.sell) ? `${fmtVND((i.sell - i.buy) / 1000)}K` : '—');
+
+function tickerRows() {
+  const items = state.dom?.data?.items || [];
+  return [...items]
+    .filter((i) => okPrice(i.buy) || okPrice(i.sell))
+    .sort((a, b) => (TYPE_ORDER[a.type] - TYPE_ORDER[b.type])
+      || ((SOURCE_ORDER.indexOf(a.source) + 1 || 99) - (SOURCE_ORDER.indexOf(b.source) + 1 || 99)));
+}
+
+// Giá kèm mũi tên + màu theo thay đổi so với hôm trước (vang.today: change_buy / change_sell)
+const dayCls = (ch) => (ch > 0 ? 'day-up' : ch < 0 ? 'day-down' : '');
+const priceText = (n, ch) => `${ch > 0 ? '▲ ' : ch < 0 ? '▼ ' : ''}${vnd(n)}`;
+const dayTitle = (ch) => (ch ? `So với hôm trước: ${ch > 0 ? '+' : '−'}${fmtVND(Math.abs(ch))} đ` : 'Không đổi so với hôm trước');
+
+function rowHTML(i, idx) {
+  // Tên + nơi bán, bỏ phần trùng (vd. "Vàng miếng SJC" của SJC → không thêm "SJC" lần nữa)
+  const name = (i.name.toUpperCase().includes(i.source.toUpperCase()) ? i.name : `${i.name} ${i.source}`).toUpperCase();
+  return `<div class="t-row${idx % 2 ? ' is-alt' : ''}">
+    <span class="t-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
+    <span class="t-num ${dayCls(i.changeBuy)}" data-k="${i.code}:buy" title="${dayTitle(i.changeBuy)}">${priceText(i.buy, i.changeBuy)}</span>
+    <span class="t-num ${dayCls(i.changeSell)}" data-k="${i.code}:sell" title="${dayTitle(i.changeSell)}">${priceText(i.sell, i.changeSell)}</span>
+    <span class="t-num" data-k="${i.code}:gap">${spreadK(i)}</span>
+  </div>`;
+}
+
+// Nháy + đổi màu ô khi giá đổi (cả 2 bản sao của dòng trong vòng cuộn)
+function updateCell(key, num, text, dayCh) {
+  document.querySelectorAll(`[data-k="${key}"]`).forEach((el) => {
+    if (dayCh !== undefined) {
+      el.classList.remove('day-up', 'day-down');
+      if (dayCls(dayCh)) el.classList.add(dayCls(dayCh));
+      el.title = dayTitle(dayCh);
+    }
+    if (el.textContent === text) return;
+    const prev = Number(el.dataset.v);
+    el.textContent = text;
+    el.dataset.v = num ?? '';
+    if (!Number.isFinite(prev) || !Number.isFinite(num) || prev === num) return;
+    const dir = num > prev ? 'up' : 'down';
+    el.classList.remove('tick-up', 'tick-down', 'flash-up', 'flash-down');
+    void el.offsetWidth;
+    el.classList.add(`tick-${dir}`, `flash-${dir}`);
+  });
+}
+
+function renderTicker() {
+  const body = $('ticker-body');
+  const rows = tickerRows();
+  if (!rows.length) {
+    if (!state.dom) body.innerHTML = '<p class="t-msg">Đang tải giá trong nước…</p>';
+    tickerKeys = '';
+    return;
+  }
+  const keys = rows.map((i) => i.code).join('|');
+  if (keys === tickerKeys) {
+    // Cùng danh sách: chỉ cập nhật số, không dựng lại để vòng cuộn không bị giật
+    for (const i of rows) {
+      updateCell(`${i.code}:buy`, i.buy, priceText(i.buy, i.changeBuy), i.changeBuy);
+      updateCell(`${i.code}:sell`, i.sell, priceText(i.sell, i.changeSell), i.changeSell);
+      updateCell(`${i.code}:gap`, okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : NaN, spreadK(i));
+    }
+    return;
+  }
+  tickerKeys = keys;
+  const list = rows.map((r, idx) => rowHTML(r, idx)).join('');
+  const loop = rows.length > VISIBLE_ROWS;
+  // Lặp vòng: 2 bản sao nối nhau, cuộn đúng 1 bản (−50%) rồi quay về đầu, không thấy chỗ nối
+  body.innerHTML = `<div class="t-track${loop ? ' is-loop' : ''}" style="--dur:${rows.length * SECONDS_PER_ROW}s">${list}${loop ? list : ''}</div>`;
+  body.querySelectorAll('[data-k]').forEach((el) => {
+    const [code, k] = el.dataset.k.split(':');
+    const i = rows.find((r) => r.code === code);
+    el.dataset.v = k === 'gap' ? (okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : '') : (i[k] ?? '');
+  });
+}
+
+// Tiêu đề: GIÁ VÀNG SÁNG NAY / CHIỀU NAY / TỐI NAY dd/mm/yyyy (giờ Việt Nam)
+const fHour = new Intl.DateTimeFormat('en-GB', { timeZone: TZ_VN, hour: '2-digit', hour12: false });
+const fDay = new Intl.DateTimeFormat('vi-VN', { timeZone: TZ_VN, day: '2-digit', month: '2-digit', year: 'numeric' });
+function renderTickerTitle() {
+  const d = new Date();
+  const h = Number(fHour.format(d)) % 24;
+  const part = h < 12 ? 'SÁNG NAY' : h < 18 ? 'CHIỀU NAY' : 'TỐI NAY';
+  const t = `GIÁ VÀNG ${part} ${fDay.format(d)}`;
+  const el = $('ticker-title');
+  if (el.textContent !== t) el.textContent = t;
+}
+
+// ---------- Hẹn giờ ----------
+let timers = [];
+let fastBusy = false;
+let lastSlow = 0;
+
+async function refreshFast() {
+  if (fastBusy) return;
+  fastBusy = true;
+  await Promise.all([settle('spot', loadSpot()), settle('dom', loadDomestic()), settle('tv', loadTv()), URLS.phuquy.length && settle('pq', loadPhuQuy())]);
+  fastBusy = false;
+  renderQuotes();
+  renderChart();
+  renderTicker();
+}
+async function refreshSlow() {
+  lastSlow = Date.now();
+  await Promise.all([settle('fx', loadFx()), ensureHist(typeCode, true)]);
+  renderQuotes();
+  renderChart();
+}
+
+function start() {
+  stop();
+  timers.push(setInterval(tickClock, 1000));
+  timers.push(setInterval(refreshFast, REFRESH_MS));
+  timers.push(setInterval(refreshSlow, SLOW_REFRESH_MS));
+}
+function stop() { timers.forEach(clearInterval); timers = []; }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { stop(); return; }
+  tickClock();
+  refreshFast();
+  if (Date.now() - lastSlow >= SLOW_REFRESH_MS) refreshSlow();
+  start();
+});
+
+document.addEventListener('click', async (e) => {
+  const iv = e.target.closest('[data-interval]');
+  if (iv) {
+    if (iv.dataset.interval === interval) return;
+    interval = iv.dataset.interval;
+    try { localStorage.setItem('gv:bg:interval', interval); } catch { /* bỏ qua */ }
+    renderIntervals();
+    mountChart();
+    return;
+  }
+  const t = e.target.closest('[data-type]');
+  if (t) {
+    typeCode = t.dataset.type;
+    renderTabs();
+    renderChart();
+    await ensureHist(typeCode);
+    renderChart();
+    return;
+  }
+  const d = e.target.closest('[data-days]');
+  if (d) {
+    days = Number(d.dataset.days);
+    renderTabs();
+    renderChart();
+  }
+});
+
+function boot() {
+  tickClock();
+  renderTabs();
+  renderIntervals();
+  mountChart();
+  refreshFast();
+  refreshSlow();
+  start();
+}
+
+if (window.__appReady) boot();
+else document.addEventListener('app:ready', boot, { once: true });

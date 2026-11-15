@@ -31,6 +31,11 @@ export const URLS = {
   vangToday: ['https://www.vang.today/api/prices'],
   vangTodayHistory: (type, days) => [`https://www.vang.today/api/prices?type=${type}&days=${days}`],
   pnj: ['https://edge-cf-api.pnj.io/ecom-frontend/v1/get-gold-price?zone=00'],
+  // Giá bạc Phú Quý: trang gốc không có CORS nên GitHub Actions (.github/workflows/phuquy.yml)
+  // lấy giá định kỳ và ghi vào file này trong repo; cùng tên miền nên trình duyệt đọc được.
+  phuquy: ['data/phuquy.json'],
+  // Giá + thay đổi trong ngày của một mã TradingView (có CORS, không key) — dùng ở bang-gia.html
+  tvQuote: (sym) => [`https://scanner.tradingview.com/symbol?symbol=${encodeURIComponent(sym)}&fields=close,change,change_abs`],
 };
 
 // Mã của vang.today → nguồn + tên hiển thị. type: sjc_bar | ring_9999 | other

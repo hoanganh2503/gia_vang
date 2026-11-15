@@ -1,0 +1,231 @@
+/* =========================================================
+   bang-gia.css — màn hình bảng giá, khung cố định tỷ lệ 2,5 : 1, nền trắng, không cuộn.
+
+   Đơn vị: khung .frame là container kích thước, nên
+     cqh = 1% chiều cao khung (= "chiều cao trang" trong đặc tả),
+     cqw = 1% chiều rộng khung.
+   Khi màn hình đúng tỷ lệ 2,5:1 thì 1cqh = 1vh; khi màn hình cao hơn (vd. 16:9) khung
+   không cao hết màn hình, dùng cqh để chữ vẫn đúng tỷ lệ so với khung thay vì bị tràn.
+   ========================================================= */
+
+:root {
+  /* Họ màu vàng đồng dùng chung cho cả trang: viền, tab đang chọn, thanh tiêu đề.
+     Đỏ/xanh lá (--down/--up) chỉ dùng để báo giá giảm/tăng, không dùng trang trí. */
+  --gold: #c9971c;          /* viền bảng chỉ số, tab đang chọn, đáy gradient tiêu đề */
+  --gold-light: #f6de8d;    /* đỉnh gradient, chữ trên nền nâu đỏ */
+  --gold-ink: #3a2604;      /* chữ trên nền vàng đồng (5,4:1 trên --gold) */
+  --maroon: #6b1e14;        /* nền hàng tiêu đề cột (chữ --gold-light: 8,7:1) */
+  --cream: #fbf7ec;         /* dòng xen kẽ */
+  --line-warm: #eadfc4;     /* đường kẻ ô */
+  --ink: #1f1f1f;           /* chữ trong bảng */
+  --text: #111;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --up: #16a34a;
+  --down: #dc2626;
+  --blue: #1d4ed8;
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+body {
+  display: grid; place-items: center;
+  font-family: var(--font); color: var(--text); -webkit-font-smoothing: antialiased;
+}
+
+.bg-loading { color: var(--muted); }
+
+/* ---------- Trang: khung 2,5 : 1 + khối bảng giá trong nước bên dưới ----------
+   --w: chiều rộng chung của cả hai khối. Lề trái/phải 50px; nếu màn hình thấp thì thu nhỏ
+   để tổng chiều cao (khung 0,4w + khe 0,005w + khối dưới 0,15w = 0,555w) vừa màn hình, không cuộn. */
+.page {
+  --pad-x: 50px;
+  --w: min(100vw - 2 * var(--pad-x), (100vh - 16px) / .555);
+  width: var(--w);
+  display: flex; flex-direction: column; gap: calc(var(--w) * .005);
+}
+.frame {
+  width: 100%;
+  height: calc(var(--w) / 2.5);
+  container-type: size;
+}
+.board {
+  display: grid;
+  grid-template-columns: 56fr 44fr;
+  gap: .5cqw;
+  width: 100%; height: 100%;
+}
+
+/* ---------- Cột trái ---------- */
+.board__left { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.tv-chart, .tv-chart .tradingview-widget-container, .tv-chart .tradingview-widget-container__widget { width: 100%; height: 100%; }
+.tv-fallback { display: grid; place-content: center; gap: .5rem; height: 100%; text-align: center; color: var(--muted); padding: 1rem; }
+
+/* Nút chọn khung nến: góc trên phải biểu đồ, chừa cột trục giá */
+.tv-intervals {
+  position: absolute; top: 1cqh; right: 7.5cqw; z-index: 2;
+  background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .12);
+}
+
+/* Đồng hồ: nền tối, số xanh lá dịu, font Times New Roman, viền vàng, có ngày tháng năm.
+   Kích thước = 70% bản trước. Mỗi ký tự nằm trong ô rộng cố định nên khung không co giãn khi số nhảy. */
+.led {
+  position: absolute; top: 0; left: 0; z-index: 2;
+  padding: .55cqh 1.1cqh .7cqh;
+  background: #0b0d10;
+  border: .35cqh solid var(--gold);
+  border-radius: .6cqh;
+  box-shadow: 0 0 0 1px var(--gold-light) inset, 0 3px 10px rgb(0 0 0 / .25);
+  text-align: center;
+  pointer-events: none;
+}
+.led__time {
+  display: flex; justify-content: center;
+  font-family: "Times New Roman", Times, serif; font-weight: 700;
+  font-size: 5cqh; line-height: 1.05;
+  color: #5fc98a; text-shadow: 0 0 4px rgb(95 201 138 / .35);
+}
+.led__time .d { display: inline-block; width: .55em; text-align: center; }
+.led__time .c { display: inline-block; width: .35em; text-align: center; }
+.led__date {
+  margin-top: .3cqh;
+  font-family: "Times New Roman", Times, serif; font-weight: 700;
+  font-size: max(10px, 1.6cqh); letter-spacing: .04em;
+  color: var(--gold-light); text-shadow: 0 0 5px rgb(246 222 141 / .5);
+  white-space: nowrap;
+}
+
+/* ---------- Cột phải ---------- */
+.board__right { display: grid; grid-template-rows: 1fr 1fr; gap: .5cqw; min-width: 0; min-height: 0; }
+
+/* Bảng chỉ số: 28 / 15 / 15 / 15 / 15 / 12 */
+.quotes {
+  display: grid; grid-template-rows: 28fr 15fr 15fr 15fr 15fr 12fr;
+  min-height: 0; overflow: hidden;
+  border: .5cqh solid var(--gold);
+}
+.q {
+  display: flex; align-items: center; gap: 1.2cqh;
+  min-width: 0; min-height: 0; padding: 0 1.4cqh;
+  line-height: 1.15; white-space: nowrap; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.q__label { flex: none; width: 21cqh; font-size: 3cqh; font-weight: 600; letter-spacing: -.01em; }
+.q__value { font-size: 4.35cqh; font-weight: 600; letter-spacing: -.02em; }
+.q__change { font-size: 2.7cqh; font-weight: 500; }
+.q__unit { margin-left: -.6cqh; font-size: 2.2cqh; font-weight: 500; color: var(--muted); }
+.q--convert .q__unit { margin-left: 0; font-size: 3cqh; font-weight: 600; color: var(--blue); }
+
+/* Dòng giá vàng: số to nhất, màu xanh; mức thay đổi xếp 2 dòng; logo góc phải */
+.q--gold .q__label { width: auto; }
+.q--gold .q__value { font-size: 6.7cqh; color: var(--up); letter-spacing: -.03em; }
+.q__logo { margin-left: auto; width: 5cqh; height: 5cqh; align-self: flex-start; margin-top: 1.2cqh; }
+
+/* Nhãn là link tới nguồn dữ liệu */
+.q__src, .sjc__src { color: inherit; text-decoration: none; }
+.q__src:hover, .sjc__src:hover { text-decoration: underline dotted; text-underline-offset: .4cqh; }
+.q__src sup, .sjc__src sup { margin-left: .3cqh; font-size: .5em; color: var(--muted); }
+.sjc__src { display: inline-flex; align-items: flex-start; }
+
+.q--convert .q__label, .q--convert .q__value { color: var(--blue); }
+.q--silver .q__label, .q--silver .q__value { color: var(--down); }
+
+/* Bạc Phú Quý: thanh nền xám, 2 ô mua/bán */
+.q--pq { background: #e5e7eb; gap: 1.2cqh; }
+.q--pq .q__label { width: auto; font-size: 2.4cqh; }
+.pq__cell {
+  flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 1cqh;
+  height: 72%; padding: 0 1.2cqh; background: #fff;
+}
+.pq__cell small { font-size: 1.6cqh; font-weight: 500; color: var(--muted); }
+.pq__cell b { font-size: 2.5cqh; font-weight: 600; }
+
+/* Khi số cập nhật: nháy nền 1 lần + đổi màu chữ theo hướng (giữ tới lần đổi sau) */
+.q__value { padding: 0 .4cqh; margin: 0 -.4cqh; border-radius: .5cqh; }
+.q .q__value.tick-up { color: var(--up); }
+.q .q__value.tick-down { color: var(--down); }
+.q__value.flash-up { animation: flash-up .9s ease-out; }
+.q__value.flash-down { animation: flash-down .9s ease-out; }
+@keyframes flash-up { 0%, 25% { background: rgb(22 163 74 / .25); } 100% { background: transparent; } }
+@keyframes flash-down { 0%, 25% { background: rgb(220 38 38 / .22); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .q__value.flash-up, .q__value.flash-down { animation: none; } }
+
+.up { color: var(--up); }
+.down { color: var(--down); }
+.flat { color: var(--muted); }
+
+/* ---------- Biểu đồ giá vàng trong nước: đầu 20%, đồ thị 80% ---------- */
+.sjc { display: grid; grid-template-rows: 20fr 80fr; min-height: 0; }
+.sjc__head {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5cqh;
+  min-height: 0;
+}
+.sjc__title { margin: 0; font-size: max(12px, 2cqh); line-height: 1; font-weight: 600; }
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: .6cqh; overflow: hidden; }
+.tabs button {
+  border: 0; background: #fff; color: var(--muted); font: inherit; font-size: max(11px, 1.6cqh); line-height: 1; font-weight: 500;
+  padding: .45cqh 1.2cqh; cursor: pointer;
+}
+.tabs button + button { border-left: 1px solid var(--line); }
+.tabs button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); }
+.tabs button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.sjc__body { position: relative; min-height: 0; }
+.sjc__body canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+.sjc__msg { display: grid; place-items: center; height: 100%; margin: 0; color: var(--muted); font-size: 2.4cqh; }
+
+/* ---------- Khối dưới: bảng giá vàng trong nước tự cuộn ----------
+   Cao 15% chiều rộng. cqh ở đây = 1% chiều cao khối này.
+   Tiêu đề 22% · hàng tiêu đề cột 15% · thân 63% = đúng 3 dòng, mỗi dòng 21%. */
+.ticker {
+  width: 100%;
+  height: calc(var(--w) * .15);
+  container-type: size;
+  display: grid; grid-template-rows: 22fr 15fr 63fr;
+  border: 2px solid var(--gold);
+  overflow: hidden;
+}
+.ticker__title {
+  margin: 0; display: grid; place-items: center; min-height: 0;
+  background: linear-gradient(to bottom, var(--gold-light), var(--gold)); color: var(--gold-ink);
+  font-family: "Arial Black", "Arial Bold", Gadget, Arial, sans-serif; font-weight: 900;
+  font-size: 15.5cqh; line-height: 1; letter-spacing: .01em; white-space: nowrap;
+  font-stretch: expanded;
+}
+.ticker__head, .t-row { display: grid; grid-template-columns: 33% 28% 28% 11%; }
+.ticker__head {
+  min-height: 0; background: var(--maroon); color: var(--gold-light);
+  font-weight: 800; font-size: 7cqh; line-height: 1; text-transform: uppercase;
+}
+.ticker__head span { display: grid; place-items: center; border-left: 1px solid rgb(246 222 141 / .3); }
+.ticker__head span:first-child { border-left: 0; justify-items: start; padding-left: 2cqh; }
+
+.ticker__body { position: relative; min-height: 0; overflow: hidden; background: #fff; }
+.t-track { will-change: transform; }
+.t-track.is-loop { animation: ticker-scroll var(--dur, 20s) linear infinite; }
+.ticker:hover .t-track { animation-play-state: paused; }
+@keyframes ticker-scroll { to { transform: translateY(-50%); } }
+@media (prefers-reduced-motion: reduce) { .t-track.is-loop { animation-duration: calc(var(--dur, 20s) * 3); } }
+
+.t-row { height: 21cqh; }
+.t-row > span {
+  display: flex; align-items: center; min-width: 0;
+  border-right: 1px solid var(--line-warm); border-bottom: 1px solid var(--line-warm);
+  font-size: 9.5cqh; font-weight: 800; line-height: 1; color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.t-row > span:last-child { border-right: 0; }
+.t-name { padding: 0 2cqh; overflow: hidden; text-overflow: ellipsis; display: block !important; line-height: 21cqh !important; }
+.t-num { justify-content: center; }
+/* Hàng xen kẽ nền xám nhạt */
+.t-row.is-alt > span { background: var(--cream); }
+/* Màu theo thay đổi so với hôm trước; khi giá vừa đổi trong lúc xem thì màu tick-up/down bên dưới đè lên */
+.t-num.day-up { color: var(--up); }
+.t-num.day-down { color: var(--down); }
+.t-num.tick-up { color: var(--up); }
+.t-num.tick-down { color: var(--down); }
+.t-num.flash-up { animation: flash-up .9s ease-out; }
+.t-num.flash-down { animation: flash-down .9s ease-out; }
+.t-msg { display: grid; place-items: center; height: 100%; margin: 0; color: var(--muted); font-size: 8cqh; }

@@ -8,7 +8,7 @@ Website nội bộ HTML/CSS/JS thuần, không build, không backend: `index.htm
 ## 0. Giá vàng trong dashboard (`dashboard.html`)
 
 Chạy tại `https://hoanganh2503.github.io/gia_vang/` (sau khi đăng nhập). Toàn bộ dữ liệu do **trình duyệt gọi trực tiếp** các API
-miễn phí, không key, có CORS — không dùng GitHub Actions, không có thư mục `data/` do máy tự ghi.
+miễn phí, không key, có CORS. Ngoại lệ duy nhất: giá bạc Phú Quý ở `bang-gia.html` (không có CORS) do GitHub Actions ghi vào `data/phuquy.json`.
 Đặc tả gốc ở `SPEC.md`; các điểm khác đặc tả được liệt kê ở cuối mục này.
 
 | Khối | Nguồn | Làm mới |
@@ -29,7 +29,9 @@ dashboard.html   # khung sidebar/header/đăng xuất có sẵn + các khối gi
 css/gold.css     # style riêng cho khối giá vàng, nạp sau css/style.css
 js/dashboard.js  # kiểm tra phiên, chuyển mục; phát sự kiện app:ready khi phiên hợp lệ
 js/gold/         # ES module, chỉ chạy sau app:ready
-  main.js        # khởi động, hẹn giờ làm mới, tạm dừng khi tab ẩn
+  engine.js      # lõi dùng chung: tải dữ liệu, hẹn giờ làm mới, tạm dừng khi tab ẩn, vẽ thành phần đang có
+  main.js        # điểm vào của dashboard.html
+  builder.js     # trang tùy chỉnh (tuy-chinh.html)
   config.js      # URL nguồn, mã sản phẩm, múi giờ, chu kỳ làm mới
   api.js         # fetchJSON (timeout + nhiều URL dự phòng), cache localStorage
   format.js      # định dạng số, tiền, thời gian kiểu Việt Nam
@@ -38,7 +40,46 @@ js/gold/         # ES module, chỉ chạy sau app:ready
   world-gold.js  # khối 2, 3
   markets.js     # khối 4, 5, 6
   domestic.js    # khối 7, 8
+tuy-chinh.html   # trang tùy chỉnh, độc lập với dashboard
+js/tuy-chinh.js  # kiểm tra phiên cho trang tùy chỉnh, phát app:ready
+css/builder.css  # style riêng của trang tùy chỉnh
 ```
+
+### Bảng giá màn hình (`bang-gia.html`)
+
+Trang hiển thị kiểu TV (sidebar → **Bảng giá (màn hình)**, mở tab mới), khung 2,5 : 1, làm mới mỗi 10 giây.
+Nhấp đúp để bật/tắt toàn màn hình. Mỗi nhãn chỉ số là link tới nguồn của nó.
+
+| Chỉ số | Nguồn |
+|---|---|
+| Vàng, bạc, DXY, WTI | `scanner.tradingview.com` (OANDA:XAUUSD, TVC:SILVER, TVC:DXY, NYMEX:CL1!); dự phòng gold-api / DXY tự tính |
+| Quy đổi triệu/lượng | giá vàng × USD/VND (currency-api) |
+| Bạc Phú Quý 1 lượng | `giabac.phuquygroup.vn` → `data/phuquy.json` (GitHub Actions, 5–15 phút/lần) |
+| Biểu đồ vàng trong nước | `vang.today` |
+
+**Bạc Phú Quý**: trang Phú Quý không có CORS nên trình duyệt không gọi thẳng được. Workflow
+`.github/workflows/phuquy.yml` chạy `tools/phuquy-fetch.mjs` mỗi 5 phút (GitHub thường trễ thêm vài phút),
+ghi `data/phuquy.json` và chỉ commit khi giá hoặc giờ cập nhật của Phú Quý thay đổi. Chạy tay: tab **Actions** →
+**Giá bạc Phú Quý** → **Run workflow**, hoặc `node tools/phuquy-fetch.mjs data/phuquy.json`.
+
+### Trang tùy chỉnh (`tuy-chinh.html`)
+
+Trang riêng sau đăng nhập (sidebar → **Trang tùy chỉnh**), không ảnh hưởng dashboard. Mỗi người tự ghép trang
+của mình từ 8 thành phần có trên dashboard: Giờ thế giới, Vàng thế giới, Bạc, DXY, Dầu WTI, Bảng giá trong nước,
+Biểu đồ nến XAU/USD, Diễn biến trong nước. Dữ liệu chạy thật, làm mới như dashboard.
+
+| Thao tác | Cách làm |
+|---|---|
+| Thêm | Kéo từ danh sách **Thành phần** vào khung, hoặc bấm **+**; **Thêm tất cả** để thêm hết |
+| Sắp xếp | Kéo nút **⠿** trên thành phần |
+| Độ rộng | 1/4 · 1/3 · 1/2 · 2/3 · 3/4 · Toàn bộ (lưới 12 cột; màn hẹp tự nới rộng) |
+| Chiều cao | Với 2 biểu đồ: Thấp · Vừa · Cao · Rất cao |
+| Gỡ | **✕** trên thành phần, hoặc **Gỡ hết** |
+| Xem | Nút **👁 Xem** ẩn mọi công cụ, chỉ còn trang đã ghép; **✎ Chỉnh sửa** để quay lại |
+| Sao lưu / chuyển máy | **Xuất JSON** / **Nhập JSON** |
+
+Bố cục lưu trong localStorage `gv:builder` của trình duyệt đang dùng. Mỗi thành phần chỉ thêm được một lần.
+Thư viện kéo thả SortableJS 1.15.2 (jsDelivr) chỉ tải ở chế độ Chỉnh sửa; nếu không tải được vẫn thêm bằng nút + được.
 
 Các mục trong sidebar (theo `#hash`): `#overview` Tổng quan (thẻ chỉ số + bảng giá trong nước),
 `#world-chart` Biểu đồ XAU/USD, `#history` Diễn biến trong nước, `#notes` Ghi chú, và Quản trị (chỉ ADMIN).
@@ -55,7 +96,7 @@ Muốn đổi chu kỳ làm mới: sửa `REFRESH_MS` / `SLOW_REFRESH_MS` trong 
 
 ### Khác với `SPEC.md`
 
-- **Không dùng GitHub Actions / `scripts/` / `data/*.json`** — theo yêu cầu "chỉ HTML, CSS, JS". GitHub Pages để nguyên *Deploy from a branch* (main, `/`).
+- **Dashboard không dùng GitHub Actions / `data/*.json`** — theo yêu cầu "chỉ HTML, CSS, JS". Riêng giá bạc Phú Quý trên `bang-gia.html` dùng workflow `phuquy.yml` vì nguồn không có CORS. GitHub Pages để nguyên *Deploy from a branch* (main, `/`).
 - **Giá trong nước gọi thẳng từ trình duyệt**: PNJ và vang.today đều trả `Access-Control-Allow-Origin: *`, không cần key. BTMC cần key và bị chặn CORS → lấy giá Bảo Tín Minh Châu qua vang.today. Tỷ giá Vietcombank bị chặn CORS → bỏ, dùng tỷ giá thị trường của currency-api.
 - **Lịch sử trong nước** lấy sẵn từ vang.today (≈ 358 ngày) thay vì tự tích lũy.
 - **WTI** dùng widget TradingView vì không có nguồn giá dầu miễn phí, không key mà trình duyệt gọi được (API Ninjas / EIA cần key, không được để lộ trong code).

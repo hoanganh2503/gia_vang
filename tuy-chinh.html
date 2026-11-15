@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Trang tùy chỉnh · Giá Vàng</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/gold.css">
+  <link rel="stylesheet" href="css/builder.css">
+</head>
+<body>
+  <div id="page-loading" class="page-loading">Đang kiểm tra phiên đăng nhập...</div>
+
+  <div id="app" class="layout" hidden>
+    <aside id="sidebar" class="sidebar" aria-label="Điều hướng">
+      <div class="brand">
+        <img src="assets/logo.svg" alt="" class="brand__logo" width="36" height="36">
+        <span class="brand__name">Giá Vàng</span>
+      </div>
+      <nav>
+        <ul id="nav-list" class="nav">
+          <li><a href="dashboard.html#overview" class="nav__link"><span class="nav__icon">◧</span><span class="nav__label">Tổng quan</span></a></li>
+          <li><a href="dashboard.html#world-chart" class="nav__link"><span class="nav__icon">◔</span><span class="nav__label">Biểu đồ XAU/USD</span></a></li>
+          <li><a href="dashboard.html#history" class="nav__link"><span class="nav__icon">↗</span><span class="nav__label">Diễn biến trong nước</span></a></li>
+          <li><a href="tuy-chinh.html" class="nav__link is-active" aria-current="page"><span class="nav__icon">✎</span><span class="nav__label">Trang tùy chỉnh</span></a></li>
+          <li><a href="bang-gia.html" class="nav__link" target="_blank" rel="opener"><span class="nav__icon">▣</span><span class="nav__label">Bảng giá (màn hình)</span></a></li>
+          <li><a href="dashboard.html#notes" class="nav__link"><span class="nav__icon">≡</span><span class="nav__label">Ghi chú</span></a></li>
+        </ul>
+      </nav>
+      <section class="sidebar__block">
+        <p class="sidebar__updated">Cập nhật giá: <time id="last-updated">—</time><br>Tự làm mới mỗi 10 giây</p>
+      </section>
+      <p class="sidebar__foot">Bố cục lưu trong trình duyệt này</p>
+    </aside>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+
+    <div class="main">
+      <header class="header">
+        <button id="menu-toggle" class="icon-btn header__menu" aria-label="Mở menu"
+                aria-controls="sidebar" aria-expanded="false">☰</button>
+        <h1 class="header__title">Trang tùy chỉnh</h1>
+        <div class="user">
+          <span id="user-avatar" class="user__avatar" aria-hidden="true"></span>
+          <span class="user__info">
+            <span id="user-name" class="user__name"></span>
+            <span id="user-role" class="badge"></span>
+          </span>
+          <button id="logout-btn" class="btn btn--ghost">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="content bld">
+        <div class="bld-toolbar">
+          <div class="seg" role="group" aria-label="Chế độ">
+            <button type="button" data-mode="edit" aria-pressed="true">✎ Chỉnh sửa</button>
+            <button type="button" data-mode="view" aria-pressed="false">👁 Xem</button>
+          </div>
+          <span class="bld-toolbar__hint muted small">Kéo thành phần từ danh sách vào khung, kéo ⠿ để sắp xếp, chọn độ rộng/chiều cao, ✕ để gỡ. Tự lưu.</span>
+          <span class="bld-toolbar__actions">
+            <button id="bld-add-all" type="button" class="btn btn--ghost btn--sm">Thêm tất cả</button>
+            <button id="bld-clear" type="button" class="btn btn--danger-ghost btn--sm">Gỡ hết</button>
+            <button id="bld-import" type="button" class="btn btn--ghost btn--sm">Nhập JSON</button>
+            <button id="bld-export" type="button" class="btn btn--ghost btn--sm">Xuất JSON</button>
+            <input id="bld-import-file" type="file" accept="application/json,.json" hidden>
+          </span>
+        </div>
+
+        <div class="bld-layout">
+          <aside class="bld-palette card" aria-labelledby="h-palette">
+            <header class="card__head"><h2 id="h-palette" class="h-sm">Thành phần</h2><span id="palette-count" class="badge badge--muted"></span></header>
+            <ul id="palette" class="palette"></ul>
+          </aside>
+          <div id="canvas" class="bld-canvas" aria-label="Khung trang tùy chỉnh"></div>
+        </div>
+      </main>
+
+      <footer class="site-foot">
+        <p>Thông tin chỉ mang tính tham khảo, không phải lời khuyên đầu tư.</p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Chỉ chèn vào trang khi CSV xác nhận role = admin -->
+  <template id="tpl-admin-nav">
+    <li><a href="admin.html" class="nav__link"><span class="nav__icon">⚙</span><span class="nav__label">Quản trị</span></a></li>
+  </template>
+
+  <script src="js/csv.js"></script>
+  <script src="js/password.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/tuy-chinh.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <script type="module" src="js/gold/builder.js"></script>
+</body>
+</html>

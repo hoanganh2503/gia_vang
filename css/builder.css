@@ -1,0 +1,102 @@
+/* =========================================================
+   builder.css — trang tùy chỉnh (tuy-chinh.html). Nạp sau style.css và gold.css.
+   ========================================================= */
+
+.content.bld { max-width: none; }
+
+/* ---------- Thanh công cụ ---------- */
+.bld-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem;
+  padding: .6rem .75rem; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.bld-toolbar__hint { flex: 1 1 18rem; }
+.bld-toolbar__actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+.bld-toolbar .seg button { padding: .35rem .8rem; font-size: .85rem; }
+
+/* ---------- Bố cục: danh sách bên trái + khung bên phải ---------- */
+.bld-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 1rem; align-items: start; }
+@media (max-width: 1100px) { .bld-layout { grid-template-columns: 1fr; } }
+
+.bld-palette { position: sticky; top: 4.5rem; padding: 1rem; max-height: calc(100vh - 6rem); overflow: auto; }
+@media (max-width: 1100px) { .bld-palette { position: static; max-height: none; } }
+
+.palette { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+@media (max-width: 1100px) { .palette { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); } }
+.pal-item {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .6rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+  cursor: grab; user-select: none;
+}
+.pal-item:hover { border-color: var(--primary); }
+.pal-item__grip { color: var(--muted); }
+.pal-item__text { display: grid; flex: 1; min-width: 0; line-height: 1.3; }
+.pal-item__text strong { font-size: .85rem; }
+.pal-item__text small { font-size: .72rem; color: var(--muted); }
+.pal-item.is-used { opacity: .55; cursor: default; }
+.pal-item.is-used:hover { border-color: var(--border); }
+
+/* ---------- Khung: lưới 12 cột ---------- */
+.bld-canvas {
+  container-type: inline-size;
+  display: grid; gap: 1rem; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: start;
+  min-height: 60vh; padding: .75rem; border-radius: var(--radius);
+  border: 2px dashed var(--border);
+}
+.bld-canvas:empty::before {
+  content: "Trang đang trống. Kéo thành phần từ danh sách vào đây, hoặc bấm + / Thêm tất cả.";
+  grid-column: 1 / -1; align-self: center; text-align: center; color: var(--muted); padding: 3rem 1rem;
+}
+.bld-canvas > .pal-item { grid-column: span 12; } /* bản sao khi đang thả từ danh sách */
+
+.bw { grid-column: span 12; min-width: 0; display: flex; flex-direction: column; align-self: stretch; }
+.bw[data-w="3"] { grid-column: span 3; }
+.bw[data-w="4"] { grid-column: span 4; }
+.bw[data-w="6"] { grid-column: span 6; }
+.bw[data-w="8"] { grid-column: span 8; }
+.bw[data-w="9"] { grid-column: span 9; }
+@container (max-width: 900px) {
+  .bw[data-w="3"], .bw[data-w="4"] { grid-column: span 6; }
+  .bw[data-w="8"], .bw[data-w="9"] { grid-column: span 12; }
+}
+@container (max-width: 560px) { .bw { grid-column: span 12 !important; } }
+.bw > .card { flex: 1; }
+
+/* Chiều cao chỉnh được cho biểu đồ */
+.bw .tv-chart { height: var(--wh, 500px); }
+.bw .chart-box { height: var(--wh, 400px); }
+
+/* ---------- Thanh công cụ trên từng thành phần ---------- */
+.bw__bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .3rem;
+  margin-bottom: .35rem; padding: .3rem; border-radius: 8px;
+  background: var(--primary-soft); font-size: .8rem;
+}
+.bw__name { flex: 1 1 5rem; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bw__bar select { width: auto; padding: .15rem .3rem; font-size: .75rem; border-radius: 6px; }
+.bw__handle, .bw__remove {
+  font: inherit; line-height: 1; padding: .3rem .45rem; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.bw__handle { cursor: grab; font-size: 1rem; touch-action: none; }
+.bw__handle:active { cursor: grabbing; }
+.bw__remove:hover { color: var(--danger); border-color: var(--danger); }
+.bw--ghost { opacity: .35; }
+.bw--chosen { box-shadow: 0 8px 28px rgb(0 0 0 / .18); border-radius: var(--radius); }
+/* iframe TradingView nuốt sự kiện chuột → tắt khi đang chỉnh sửa để kéo thả mượt */
+body:not(.bld-view) .bw iframe { pointer-events: none; }
+
+/* ---------- Chế độ Xem: ẩn mọi công cụ chỉnh sửa ---------- */
+.bld-view .bld-palette,
+.bld-view .bw__bar,
+.bld-view .bld-toolbar__hint,
+.bld-view .bld-toolbar__actions { display: none; }
+.bld-view .bld-layout { grid-template-columns: 1fr; }
+.bld-view .bld-canvas { border-color: transparent; padding: 0; min-height: 0; }
+.bld-view .bld-canvas:empty::before { content: "Trang đang trống. Chuyển sang ✎ Chỉnh sửa để thêm thành phần."; }
+
+/* ---------- Giờ thế giới dạng thẻ (trong sidebar thì dùng style của gold.css) ---------- */
+.clocks--card { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; }
+.clocks--card .clock { color: var(--text); background: var(--surface-2); padding: .5rem .75rem; }
+.clocks--card .clock:hover { background: var(--surface-2); }
+.clocks--card .clock__time { color: var(--text); font-size: 1.1rem; }

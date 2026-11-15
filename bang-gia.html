@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light">
+  <title>Bảng giá · Giá Vàng</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/bang-gia.css">
+</head>
+<body>
+  <div id="page-loading" class="bg-loading">Đang kiểm tra phiên đăng nhập...</div>
+
+  <div id="app" class="page" hidden>
+   <div class="frame">
+    <div class="board">
+      <!-- Cột trái: biểu đồ nến + đồng hồ -->
+      <section class="board__left" aria-label="Biểu đồ nến giá vàng thế giới">
+        <div id="tv-chart" class="tv-chart"></div>
+        <div id="tv-intervals" class="tabs tv-intervals" role="group" aria-label="Khung nến"></div>
+        <div class="led" aria-live="off">
+          <div id="led-time" class="led__time">--:--:--</div>
+          <div id="led-date" class="led__date"></div>
+        </div>
+      </section>
+
+      <!-- Cột phải -->
+      <section class="board__right">
+        <div class="quotes" aria-label="Bảng chỉ số">
+          <div class="q q--gold">
+            <a class="q__label q__src" href="https://www.tradingview.com/symbols/XAUUSD/?exchange=OANDA" target="_blank" rel="noopener" title="Nguồn: TradingView OANDA:XAUUSD (cùng nguồn với biểu đồ nến). Dự phòng: api.gold-api.com">GIÁ VÀNG<sup aria-hidden="true">↗</sup></a>
+            <span id="v-gold" class="q__value">—</span>
+            <span class="q__unit">USD</span>
+            <span id="c-gold" class="q__change">—</span>
+            <img src="assets/logo.svg" alt="Giá Vàng" class="q__logo">
+          </div>
+          <div class="q q--convert">
+            <a class="q__label q__src" href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener" title="Giá vàng ở dòng trên × tỷ giá USD/VND (fawazahmed0 currency-api, cập nhật theo ngày) ÷ 31,1035 × 37,5 g/lượng. Chưa gồm thuế, phí">QUY ĐỔI ⇔<sup aria-hidden="true">↗</sup></a>
+            <span id="v-convert" class="q__value">—</span>
+            <span class="q__unit">TRIỆU/LƯỢNG</span>
+          </div>
+          <div class="q">
+            <a class="q__label q__src" href="https://www.tradingview.com/symbols/TVC-DXY/" target="_blank" rel="noopener" title="Nguồn: TradingView TVC:DXY. Dự phòng: tự tính từ tỷ giá currency-api (công thức ICE)">CHỈ SỐ DXY<sup aria-hidden="true">↗</sup></a>
+            <span id="v-dxy" class="q__value">—</span>
+            <span class="q__unit">USD</span>
+            <span id="c-dxy" class="q__change">—</span>
+          </div>
+          <div class="q">
+            <a class="q__label q__src" href="https://www.tradingview.com/symbols/NYMEX-CL1!/" target="_blank" rel="noopener" title="Nguồn: TradingView NYMEX:CL1! (hợp đồng tương lai dầu WTI kỳ gần nhất)">DẦU WTI<sup aria-hidden="true">↗</sup></a>
+            <span id="v-wti" class="q__value">—</span>
+            <span class="q__unit">USD / BLL</span>
+            <span id="c-wti" class="q__change">—</span>
+          </div>
+          <div class="q q--silver">
+            <a class="q__label q__src" href="https://www.tradingview.com/symbols/TVC-SILVER/" target="_blank" rel="noopener" title="Nguồn: TradingView TVC:SILVER. Dự phòng: api.gold-api.com">BẠC THẾ GIỚI<sup aria-hidden="true">↗</sup></a>
+            <span id="v-silver" class="q__value">—</span>
+            <span class="q__unit">USD</span>
+            <span id="c-silver" class="q__change">—</span>
+          </div>
+          <div class="q q--pq">
+            <a id="pq-label" class="q__label q__src" href="https://giabac.phuquygroup.vn/" target="_blank" rel="noopener" title="Nguồn: giabac.phuquygroup.vn">BẠC PHÚ QUÝ 1 LƯỢNG<sup aria-hidden="true">↗</sup></a>
+            <span class="pq__cell"><small>MUA</small><b id="v-pq-buy" class="q__value">—</b></span>
+            <span class="pq__cell"><small>BÁN</small><b id="v-pq-sell" class="q__value">—</b></span>
+          </div>
+        </div>
+
+        <div class="sjc" aria-labelledby="sjc-title">
+          <div class="sjc__head">
+            <a class="sjc__src" href="https://www.vang.today/" target="_blank" rel="noopener" title="Nguồn: vang.today (lịch sử giá theo ngày + giá hiện tại)"><h2 id="sjc-title" class="sjc__title">BIỂU ĐỒ GIÁ VÀNG MIẾNG SJC</h2><sup aria-hidden="true">↗</sup></a>
+            <div class="tabs" id="tabs-type" role="group" aria-label="Loại vàng"></div>
+            <div class="tabs" id="tabs-days" role="group" aria-label="Khoảng thời gian">
+              <button type="button" data-days="7">7 ngày</button>
+              <button type="button" data-days="30" aria-pressed="true">30 ngày</button>
+              <button type="button" data-days="90">90 ngày</button>
+              <button type="button" data-days="365">1 năm</button>
+            </div>
+          </div>
+          <div class="sjc__body">
+            <canvas id="sjc-chart"></canvas>
+            <p id="sjc-msg" class="sjc__msg" hidden></p>
+          </div>
+        </div>
+      </section>
+    </div>
+   </div>
+
+    <!-- Khối dưới: bảng giá vàng trong nước, hiện 3 dòng, tự cuộn vòng -->
+    <section class="ticker" aria-labelledby="ticker-title">
+      <h2 id="ticker-title" class="ticker__title">GIÁ VÀNG</h2>
+      <div class="ticker__head" aria-hidden="true">
+        <span>LOẠI VÀNG</span><span>MUA VÀO (Đ/L)</span><span>BÁN RA (Đ/L)</span><span>C.LỆCH</span>
+      </div>
+      <div id="ticker-body" class="ticker__body"></div>
+    </section>
+  </div>
+
+  <script src="js/csv.js"></script>
+  <script src="js/password.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/bang-gia.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <script type="module" src="js/gold/bang-gia.js"></script>
+</body>
+</html>
