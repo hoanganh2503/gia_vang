@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Tạo hash mật khẩu · Giá Vàng</title>
+  <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card auth-card--wide">
+    <div class="brand">
+      <img src="../assets/logo.svg" alt="" class="brand__logo" width="40" height="40">
+      <div>
+        <h1 class="brand__name">Tạo dòng CSV tài khoản</h1>
+        <p class="brand__tagline">Chạy hoàn toàn trên trình duyệt — mật khẩu không được gửi đi đâu.</p>
+      </div>
+    </div>
+
+    <form id="hash-form" class="form" novalidate>
+      <div class="field">
+        <label for="h-username">Username</label>
+        <input id="h-username" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+        <small class="muted">3–32 ký tự: chữ, số, dấu chấm, gạch dưới, gạch ngang.</small>
+      </div>
+      <div class="field">
+        <label for="h-password">Mật khẩu</label>
+        <div class="input-group">
+          <input id="h-password" type="password" autocomplete="new-password" required>
+          <button type="button" class="input-group__btn" data-toggle-password="h-password"
+                  aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button>
+        </div>
+        <small class="muted">Tối thiểu 10 ký tự. Nên dùng mật khẩu ngẫu nhiên, dài.</small>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="h-role">Role</label>
+          <select id="h-role">
+            <option value="member">member</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="h-status">Status</label>
+          <select id="h-status">
+            <option value="active">active</option>
+            <option value="disabled">disabled</option>
+          </select>
+        </div>
+      </div>
+
+      <p id="h-error" class="form-message form-message--error" role="alert" hidden></p>
+      <button id="h-submit" type="submit" class="btn btn--primary btn--block">Tạo dòng CSV</button>
+    </form>
+
+    <div id="h-output-wrap" class="field" hidden>
+      <label for="h-output">Dòng CSV (dán vào <code>data/users.csv</code>)</label>
+      <textarea id="h-output" rows="3" readonly></textarea>
+      <button id="h-copy" type="button" class="btn btn--ghost">Sao chép</button>
+    </div>
+  </main>
+
+  <script src="../js/csv.js"></script>
+  <script src="../js/password.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    (() => {
+      App.initPasswordToggles();
+      const $ = id => document.getElementById(id);
+      const err = $('h-error');
+
+      $('hash-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        err.hidden = true;
+        const username = $('h-username').value.trim();
+        const password = $('h-password').value;
+
+        if (!CSV.USERNAME_RE.test(username)) { err.textContent = 'Username không hợp lệ.'; err.hidden = false; return; }
+        if (password.length < 10) { err.textContent = 'Mật khẩu cần tối thiểu 10 ký tự.'; err.hidden = false; return; }
+
+        $('h-submit').disabled = true;
+        $('h-submit').textContent = 'Đang băm...';
+        const hash = await Password.hash(password);
+        $('h-password').value = '';
+        $('h-output').value = CSV.toRow([username, hash, $('h-role').value, $('h-status').value]);
+        $('h-output-wrap').hidden = false;
+        $('h-submit').disabled = false;
+        $('h-submit').textContent = 'Tạo dòng CSV';
+      });
+
+      $('h-copy').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText($('h-output').value);
+          App.toast('Đã sao chép.', 'success');
+        } catch {
+          $('h-output').select();
+          App.toast('Không sao chép tự động được — hãy nhấn Ctrl+C.', 'error');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

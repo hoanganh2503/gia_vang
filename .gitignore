@@ -1,0 +1,16 @@
+# Không bao giờ commit danh sách tài khoản thật.
+# File data/users.csv trong repo chỉ chứa tài khoản DEMO.
+# Khi dùng thật, đặt file thật ở đây (bị bỏ qua) và chỉ upload trực tiếp lên máy chủ.
+data/*.real.csv
+data/private/
+*.private.csv
+users-real*.csv
+backup/
+
+# Hệ điều hành / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp

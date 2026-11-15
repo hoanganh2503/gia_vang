@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Dashboard · Giá Vàng</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="page-loading" class="page-loading">Đang kiểm tra phiên đăng nhập...</div>
+
+  <div id="app" class="layout" hidden>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar" aria-label="Điều hướng">
+      <div class="brand">
+        <img src="assets/logo.svg" alt="" class="brand__logo" width="36" height="36">
+        <span class="brand__name">Giá Vàng</span>
+      </div>
+      <nav>
+        <ul id="nav-list" class="nav">
+          <li><a href="#overview" class="nav__link" data-nav="overview"><span class="nav__icon">◧</span><span class="nav__label">Tổng quan</span></a></li>
+          <li><a href="#prices" class="nav__link" data-nav="prices"><span class="nav__icon">◈</span><span class="nav__label">Bảng giá</span></a></li>
+          <li><a href="#notes" class="nav__link" data-nav="notes"><span class="nav__icon">≡</span><span class="nav__label">Ghi chú</span></a></li>
+        </ul>
+      </nav>
+      <p class="sidebar__foot">Bản mẫu tĩnh · không có máy chủ</p>
+    </aside>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="header">
+        <button id="menu-toggle" class="icon-btn header__menu" aria-label="Mở menu"
+                aria-controls="sidebar" aria-expanded="false">☰</button>
+        <h1 id="page-title" class="header__title">Tổng quan</h1>
+        <div class="user">
+          <span id="user-avatar" class="user__avatar" aria-hidden="true"></span>
+          <span class="user__info">
+            <span id="user-name" class="user__name"></span>
+            <span id="user-role" class="badge"></span>
+          </span>
+          <button id="logout-btn" class="btn btn--ghost">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main id="content" class="content">
+        <!-- Tổng quan -->
+        <section data-section="overview" hidden>
+          <div class="card card--hero">
+            <h2>Xin chào, <span id="welcome-name"></span> 👋</h2>
+            <p>Đây là khu vực nội dung nội bộ. Bạn chỉ có quyền xem; nội dung do quản trị viên cập nhật.</p>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <span class="stat__label">SJC mua vào</span>
+              <span class="stat__value">—</span>
+              <span class="stat__hint">Dữ liệu mẫu</span>
+            </div>
+            <div class="stat">
+              <span class="stat__label">SJC bán ra</span>
+              <span class="stat__value">—</span>
+              <span class="stat__hint">Dữ liệu mẫu</span>
+            </div>
+            <div class="stat">
+              <span class="stat__label">Cập nhật</span>
+              <span class="stat__value">—</span>
+              <span class="stat__hint">Thay bằng nội dung thật</span>
+            </div>
+          </div>
+
+          <div class="card notice">
+            <strong>Lưu ý:</strong> Trang này là bản mẫu chạy hoàn toàn trên trình duyệt.
+            Nội dung trong file HTML có thể được xem bởi bất kỳ ai truy cập trực tiếp đường dẫn.
+            Không đặt thông tin thật sự bí mật ở đây.
+          </div>
+        </section>
+
+        <!-- Bảng giá -->
+        <section data-section="prices" hidden>
+          <div class="card">
+            <div class="card__head">
+              <h2>Bảng giá (mẫu)</h2>
+              <span class="muted">Đơn vị: nghìn đồng/lượng</span>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>Loại</th><th class="num">Mua vào</th><th class="num">Bán ra</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Vàng miếng (mẫu)</td><td class="num">0</td><td class="num">0</td></tr>
+                  <tr><td>Nhẫn trơn 9999 (mẫu)</td><td class="num">0</td><td class="num">0</td></tr>
+                  <tr><td>Nữ trang 18K (mẫu)</td><td class="num">0</td><td class="num">0</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="muted small">Các con số trên chỉ là chỗ trống. Hãy thay bằng nội dung của bạn trong <code>dashboard.html</code>.</p>
+          </div>
+        </section>
+
+        <!-- Ghi chú -->
+        <section data-section="notes" hidden>
+          <div class="card prose">
+            <h2>Ghi chú</h2>
+            <p>Khu vực dành cho thông báo, hướng dẫn hoặc tài liệu nội bộ.</p>
+            <ul>
+              <li>MEMBER: chỉ xem nội dung.</li>
+              <li>ADMIN: xem nội dung và quản lý tài khoản ở mục <em>Quản trị</em>.</li>
+              <li>Tài khoản được quản lý trong file <code>data/users.csv</code>.</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Chỉ chèn vào trang khi CSV xác nhận role = admin -->
+  <template id="tpl-admin-nav">
+    <li><a href="admin.html" class="nav__link"><span class="nav__icon">⚙</span><span class="nav__label">Quản trị</span></a></li>
+  </template>
+
+
+  <script src="js/csv.js"></script>
+  <script src="js/password.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

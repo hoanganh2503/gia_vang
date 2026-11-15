@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Quản trị · Giá Vàng</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="page-loading" class="page-loading">Đang kiểm tra phiên đăng nhập...</div>
+
+  <div id="app" class="layout" hidden>
+    <aside id="sidebar" class="sidebar" aria-label="Điều hướng">
+      <div class="brand">
+        <img src="assets/logo.svg" alt="" class="brand__logo" width="36" height="36">
+        <span class="brand__name">Giá Vàng</span>
+      </div>
+      <nav>
+        <ul id="nav-list" class="nav">
+          <li><a href="dashboard.html#overview" class="nav__link"><span class="nav__icon">◧</span><span class="nav__label">Tổng quan</span></a></li>
+          <li><a href="dashboard.html#prices" class="nav__link"><span class="nav__icon">◈</span><span class="nav__label">Bảng giá</span></a></li>
+          <li><a href="dashboard.html#notes" class="nav__link"><span class="nav__icon">≡</span><span class="nav__label">Ghi chú</span></a></li>
+        </ul>
+      </nav>
+      <p class="sidebar__foot">Bản mẫu tĩnh · không có máy chủ</p>
+    </aside>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+
+    <div class="main">
+      <header class="header">
+        <button id="menu-toggle" class="icon-btn header__menu" aria-label="Mở menu"
+                aria-controls="sidebar" aria-expanded="false">☰</button>
+        <h1 class="header__title">Quản trị tài khoản</h1>
+        <div class="user">
+          <span id="user-avatar" class="user__avatar" aria-hidden="true"></span>
+          <span class="user__info">
+            <span id="user-name" class="user__name"></span>
+            <span id="user-role" class="badge"></span>
+          </span>
+          <button id="logout-btn" class="btn btn--ghost">Đăng xuất</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <!-- Trạng thái bản nháp -->
+        <div id="draft-banner" class="banner banner--warn" hidden>
+          <span><strong>Có thay đổi chưa xuất.</strong> Thay đổi chỉ nằm trong trình duyệt này cho đến khi bạn
+            xuất file CSV và tải lên máy chủ.</span>
+          <span class="banner__actions">
+            <button id="discard-btn" class="btn btn--ghost btn--sm">Bỏ thay đổi</button>
+            <button id="export-btn-2" class="btn btn--primary btn--sm">Xuất CSV</button>
+          </span>
+        </div>
+
+        <div id="csv-errors" class="banner banner--error" hidden>
+          <div>
+            <strong id="csv-errors-title"></strong>
+            <ul id="csv-errors-list" class="banner__list"></ul>
+          </div>
+        </div>
+
+        <!-- Thống kê -->
+        <div class="stats">
+          <div class="stat">
+            <span class="stat__label">Tổng tài khoản</span>
+            <span id="stat-total" class="stat__value">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Đang hoạt động</span>
+            <span id="stat-active" class="stat__value stat__value--success">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat__label">Đã khóa</span>
+            <span id="stat-disabled" class="stat__value stat__value--danger">0</span>
+          </div>
+        </div>
+
+        <!-- Danh sách -->
+        <section class="card">
+          <div class="toolbar">
+            <div class="toolbar__filters">
+              <input id="search" type="search" placeholder="Tìm username..." aria-label="Tìm tài khoản">
+              <select id="filter-status" aria-label="Lọc theo trạng thái">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="disabled">Đã khóa</option>
+              </select>
+            </div>
+            <div class="toolbar__actions">
+              <button id="create-btn" class="btn btn--primary">+ Tạo tài khoản</button>
+              <label class="btn btn--ghost" for="import-file">Nhập CSV</label>
+              <input id="import-file" type="file" accept=".csv,text/csv" hidden>
+              <button id="export-btn" class="btn btn--ghost">Xuất CSV</button>
+              <button id="reload-btn" class="btn btn--ghost" title="Tải lại users.csv từ máy chủ">Tải lại</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table table--accounts">
+              <thead>
+                <tr><th>Username</th><th>Role</th><th>Status</th><th class="actions-col">Actions</th></tr>
+              </thead>
+              <tbody id="user-rows"></tbody>
+            </table>
+          </div>
+          <p id="empty-state" class="empty" hidden>Không có tài khoản phù hợp.</p>
+        </section>
+
+        <p class="notice">
+          Website tĩnh không ghi được lên máy chủ. Sau khi sửa, bấm <strong>Xuất CSV</strong> để tải file
+          <code>users.csv</code> mới, rồi tải file đó lên máy chủ đè vào <code>data/users.csv</code>.
+          Đây là kiểm tra phía trình duyệt, không phải bảo mật thật — xem README.md.
+        </p>
+      </main>
+    </div>
+  </div>
+
+  <template id="tpl-admin-nav">
+    <li><a href="admin.html" class="nav__link is-active" aria-current="page"><span class="nav__icon">⚙</span><span class="nav__label">Quản trị</span></a></li>
+  </template>
+
+  <!-- Hộp tạo tài khoản -->
+  <dialog id="create-dialog" class="modal">
+    <form id="create-form" class="modal__body form" novalidate>
+      <h2 class="modal__title">Tạo tài khoản</h2>
+      <div class="field">
+        <label for="c-username">Username</label>
+        <input id="c-username" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" required>
+        <small class="muted">3–32 ký tự: chữ, số, dấu chấm, gạch dưới, gạch ngang.</small>
+      </div>
+      <div class="field">
+        <label for="c-password">Mật khẩu</label>
+        <div class="input-group">
+          <input id="c-password" type="password" autocomplete="new-password" required>
+          <button type="button" class="input-group__btn" data-toggle-password="c-password"
+                  aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button>
+        </div>
+        <small class="muted">Tối thiểu 10 ký tự. Nên dùng mật khẩu dài, ngẫu nhiên.</small>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="c-role">Role</label>
+          <select id="c-role">
+            <option value="member">member</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="c-status">Status</label>
+          <select id="c-status">
+            <option value="active">active</option>
+            <option value="disabled">disabled</option>
+          </select>
+        </div>
+      </div>
+      <p id="c-error" class="form-message form-message--error" role="alert" hidden></p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-close>Hủy</button>
+        <button id="c-submit" type="submit" class="btn btn--primary">Tạo</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Hộp sửa tài khoản -->
+  <dialog id="edit-dialog" class="modal">
+    <form id="edit-form" class="modal__body form" novalidate>
+      <h2 class="modal__title">Sửa tài khoản <span id="e-username"></span></h2>
+      <div class="field">
+        <label for="e-role">Role</label>
+        <select id="e-role">
+          <option value="member">member</option>
+          <option value="admin">admin</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="e-password">Mật khẩu mới</label>
+        <div class="input-group">
+          <input id="e-password" type="password" autocomplete="new-password">
+          <button type="button" class="input-group__btn" data-toggle-password="e-password"
+                  aria-label="Hiện mật khẩu" aria-pressed="false">Hiện</button>
+        </div>
+        <small class="muted">Để trống nếu không đổi. Đổi mật khẩu sẽ đăng xuất phiên đang mở của tài khoản này.</small>
+      </div>
+      <p id="e-error" class="form-message form-message--error" role="alert" hidden></p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-close>Hủy</button>
+        <button id="e-submit" type="submit" class="btn btn--primary">Lưu</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/csv.js"></script>
+  <script src="js/password.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
