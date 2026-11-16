@@ -159,8 +159,22 @@ function fillSjcProvinces(rows) {
   const filled = OLD_PROVINCES.filter((p) => !has(p)).map((p) => ({
     ...tpl, name: `${p} ${SJC_BAR}`, filled: true, from: tpl.name,
   }));
+  // Dòng SJC: dòng thật trước, các tỉnh thêm vào nối sau
   const lastSjc = rows.lastIndexOf(sjc[sjc.length - 1]);
-  return [...rows.slice(0, lastSjc + 1), ...filled, ...rows.slice(lastSjc + 1)];
+  return spreadBrands([...rows.slice(0, lastSjc + 1), ...filled, ...rows.slice(lastSjc + 1)]);
+}
+
+// Rải đều từng thương hiệu dọc cả bảng (giữ thứ tự trong mỗi thương hiệu), để lúc nào cuộn
+// cũng thấy đủ SJC, BTMC, PNJ, Phú Quý, DOJI…, không phải xem liền vài phút một thương hiệu.
+// Dòng thứ k của thương hiệu có n dòng nằm ở vị trí (k + 0,5) / n, rồi xếp theo vị trí đó.
+function spreadBrands(rows) {
+  const groups = new Map();
+  rows.forEach((r) => { if (!groups.has(r.brand)) groups.set(r.brand, []); groups.get(r.brand).push(r); });
+  const order = [...groups.keys()];
+  return [...groups.values()]
+    .flatMap((g) => g.map((r, k) => ({ r, pos: (k + 0.5) / g.length, b: order.indexOf(r.brand) })))
+    .sort((x, y) => x.pos - y.pos || x.b - y.b)
+    .map((x) => x.r);
 }
 
 async function loadVietnamnet() {
