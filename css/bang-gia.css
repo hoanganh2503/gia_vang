@@ -110,7 +110,7 @@ body {
 .q__value { font-size: 5.8cqh; font-weight: 800; letter-spacing: -.02em; }
 .q__change { font-size: 3.6cqh; font-weight: 700; }
 .q__unit { margin-left: -.9cqh; font-size: 2.9cqh; font-weight: 700; color: var(--muted); }
-.q--convert .q__unit { margin-left: 0; font-size: 4cqh; font-weight: 800; color: var(--blue); }
+.q--convert .q__unit { margin-left: 0; font-size: 3.4cqh; font-weight: 800; color: var(--blue); }
 
 /* Dòng giá vàng: số to nhất, màu xanh; mức thay đổi xếp 2 dòng; logo góc phải */
 .q--gold .q__label { width: auto; }
@@ -126,16 +126,17 @@ body {
 .sjc__src { display: inline-flex; align-items: flex-start; }
 
 .q--convert .q__label, .q--convert .q__value { color: var(--blue); }
-/* Số quy đổi to và đậm như số giá vàng */
+/* Cỡ chữ quy đổi và bạc thế giới đã đổi chỗ cho nhau (bạc to hơn) */
 .q--convert { overflow: visible; }
-.q--convert .q__value { font-size: 8cqh; line-height: 1; letter-spacing: -.03em; }
+.q--convert .q__label { font-size: 4.4cqh; }
+.q--convert .q__value { font-size: 6.6cqh; line-height: 1; letter-spacing: -.03em; }
 .q--silver .q__label, .q--silver .q__value { color: var(--down); }
-.q--silver { gap: 2.2cqh; }
-.q--silver .q__label { width: auto; font-size: 4.4cqh; letter-spacing: -.02em; }
+.q--silver { gap: 1.6cqh; }
+.q--silver .q__label { width: auto; font-size: 4cqh; letter-spacing: -.02em; }
 /* Bạc thế giới to hơn các dòng chỉ số, vừa đủ để mức chênh và % nằm cùng 1 hàng */
-.q--silver .q__value { font-size: 6.6cqh; line-height: 1; letter-spacing: -.03em; }
-.q--silver .q__unit { margin-left: -1.4cqh; font-size: 3.4cqh; }
-.q--silver .q__change { font-size: 3.4cqh; }
+.q--silver .q__value { font-size: 8cqh; line-height: 1; letter-spacing: -.03em; }
+.q--silver .q__unit { font-size: 4cqh; }
+.q--silver .q__change { font-size: 3.2cqh; }
 
 /* Bạc Phú Quý: thanh nền xám, 2 ô mua/bán */
 .q--pq { background: #e5e7eb; gap: 1.2cqh; }
