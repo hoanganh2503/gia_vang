@@ -70,7 +70,7 @@ body {
   background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .12);
 }
 
-/* Đồng hồ: nền tối, số xanh lá dịu, font Times New Roman, viền vàng, có ngày tháng năm.
+/* Đồng hồ: nền tối, số xanh lá dịu, font Times New Roman, viền vàng, chỉ hiện giờ.
    Kích thước = 70% bản trước. Mỗi ký tự nằm trong ô rộng cố định nên khung không co giãn khi số nhảy. */
 .led {
   position: absolute; top: 0; left: 0; z-index: 2;
@@ -90,13 +90,6 @@ body {
 }
 .led__time .d { display: inline-block; width: .55em; text-align: center; }
 .led__time .c { display: inline-block; width: .35em; text-align: center; }
-.led__date {
-  margin-top: .3cqh;
-  font-family: "Times New Roman", Times, serif; font-weight: 700;
-  font-size: max(10px, 1.6cqh); letter-spacing: .04em;
-  color: var(--gold-light); text-shadow: 0 0 5px rgb(246 222 141 / .5);
-  white-space: nowrap;
-}
 
 /* ---------- Cột phải ---------- */
 .board__right { display: grid; grid-template-rows: 1fr 1fr; gap: .5cqw; min-width: 0; min-height: 0; }
@@ -108,21 +101,23 @@ body {
   border: .5cqh solid var(--gold);
 }
 .q {
-  display: flex; align-items: center; gap: 1.2cqh;
-  min-width: 0; min-height: 0; padding: 0 1.4cqh;
+  display: flex; align-items: center; gap: 1.6cqh;
+  min-width: 0; min-height: 0; padding: 0 1cqh 0 1.4cqh;
   line-height: 1.15; white-space: nowrap; overflow: hidden;
   font-variant-numeric: tabular-nums;
 }
-.q__label { flex: none; width: 21cqh; font-size: 3cqh; font-weight: 600; letter-spacing: -.01em; }
-.q__value { font-size: 4.35cqh; font-weight: 600; letter-spacing: -.02em; }
-.q__change { font-size: 2.7cqh; font-weight: 500; }
-.q__unit { margin-left: -.6cqh; font-size: 2.2cqh; font-weight: 500; color: var(--muted); }
-.q--convert .q__unit { margin-left: 0; font-size: 3cqh; font-weight: 600; color: var(--blue); }
+.q__label { flex: none; width: 28cqh; font-size: 4cqh; font-weight: 800; letter-spacing: -.01em; }
+.q__value { font-size: 5.8cqh; font-weight: 800; letter-spacing: -.02em; }
+.q__change { font-size: 3.6cqh; font-weight: 700; }
+.q__unit { margin-left: -.9cqh; font-size: 2.9cqh; font-weight: 700; color: var(--muted); }
+.q--convert .q__unit { margin-left: 0; font-size: 4cqh; font-weight: 800; color: var(--blue); }
 
 /* Dòng giá vàng: số to nhất, màu xanh; mức thay đổi xếp 2 dòng; logo góc phải */
 .q--gold .q__label { width: auto; }
-.q--gold .q__value { font-size: 6.7cqh; color: var(--up); letter-spacing: -.03em; }
-.q__logo { margin-left: auto; width: 5cqh; height: 5cqh; align-self: flex-start; margin-top: 1.2cqh; }
+/* Dòng giá vàng: mức thay đổi xếp 2 dòng (▲ +x / (+y%)) để vừa chiều ngang khi chữ to */
+.q--gold .q__change { display: flex; flex-direction: column; gap: .6cqh; }
+.q--gold .q__value { font-size: 9cqh; color: var(--up); letter-spacing: -.03em; }
+.q__logo { margin-left: auto; width: 6.8cqh; height: 6.8cqh; align-self: flex-start; margin-top: 1.2cqh; }
 
 /* Nhãn là link tới nguồn dữ liệu */
 .q__src, .sjc__src { color: inherit; text-decoration: none; }
@@ -131,17 +126,21 @@ body {
 .sjc__src { display: inline-flex; align-items: flex-start; }
 
 .q--convert .q__label, .q--convert .q__value { color: var(--blue); }
+/* Số quy đổi to và đậm như số giá vàng */
+.q--convert { overflow: visible; }
+.q--convert .q__value { font-size: 8cqh; line-height: 1; letter-spacing: -.03em; }
 .q--silver .q__label, .q--silver .q__value { color: var(--down); }
+.q--silver .q__label { letter-spacing: -.02em; }
 
 /* Bạc Phú Quý: thanh nền xám, 2 ô mua/bán */
 .q--pq { background: #e5e7eb; gap: 1.2cqh; }
-.q--pq .q__label { width: auto; font-size: 2.4cqh; }
+.q--pq .q__label { width: auto; font-size: 3.2cqh; }
 .pq__cell {
   flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 1cqh;
   height: 72%; padding: 0 1.2cqh; background: #fff;
 }
-.pq__cell small { font-size: 1.6cqh; font-weight: 500; color: var(--muted); }
-.pq__cell b { font-size: 2.5cqh; font-weight: 600; }
+.pq__cell small { font-size: 2.2cqh; font-weight: 700; color: var(--muted); }
+.pq__cell b { font-size: 3.4cqh; font-weight: 800; }
 
 /* Khi số cập nhật: nháy nền 1 lần + đổi màu chữ theo hướng (giữ tới lần đổi sau) */
 .q__value { padding: 0 .4cqh; margin: 0 -.4cqh; border-radius: .5cqh; }
@@ -163,10 +162,10 @@ body {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5cqh;
   min-height: 0;
 }
-.sjc__title { margin: 0; font-size: max(12px, 2cqh); line-height: 1; font-weight: 600; }
+.sjc__title { margin: 0; font-size: max(12px, 2cqh); line-height: 1; font-weight: 800; }
 .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: .6cqh; overflow: hidden; }
 .tabs button {
-  border: 0; background: #fff; color: var(--muted); font: inherit; font-size: max(11px, 1.6cqh); line-height: 1; font-weight: 500;
+  border: 0; background: #fff; color: var(--muted); font: inherit; font-size: max(11px, 1.6cqh); line-height: 1; font-weight: 700;
   padding: .45cqh 1.2cqh; cursor: pointer;
 }
 .tabs button + button { border-left: 1px solid var(--line); }
@@ -197,7 +196,7 @@ body {
 .ticker__head, .t-row { display: grid; grid-template-columns: 33% 28% 28% 11%; }
 .ticker__head {
   min-height: 0; background: var(--maroon); color: var(--gold-light);
-  font-weight: 800; font-size: 7cqh; line-height: 1; text-transform: uppercase;
+  font-weight: 900; font-size: 7cqh; line-height: 1; text-transform: uppercase;
 }
 .ticker__head span { display: grid; place-items: center; border-left: 1px solid rgb(246 222 141 / .3); }
 .ticker__head span:first-child { border-left: 0; justify-items: start; padding-left: 2cqh; }
@@ -213,12 +212,14 @@ body {
 .t-row > span {
   display: flex; align-items: center; min-width: 0;
   border-right: 1px solid var(--line-warm); border-bottom: 1px solid var(--line-warm);
-  font-size: 9.5cqh; font-weight: 800; line-height: 1; color: var(--ink);
+  font-size: 9.5cqh; font-weight: 900; line-height: 1; color: var(--ink);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .t-row > span:last-child { border-right: 0; }
 .t-name { padding: 0 2cqh; overflow: hidden; text-overflow: ellipsis; display: block !important; line-height: 21cqh !important; }
 .t-num { justify-content: center; }
+/* Giá trong bảng chạy: to hơn tên loại vàng (~1,4 lần) */
+.t-row > .t-num { font-size: 13.5cqh; letter-spacing: -.01em; }
 /* Hàng xen kẽ nền xám nhạt */
 .t-row.is-alt > span { background: var(--cream); }
 /* Màu theo thay đổi so với hôm trước; khi giá vừa đổi trong lúc xem thì màu tick-up/down bên dưới đè lên */

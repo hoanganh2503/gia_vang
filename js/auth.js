@@ -17,7 +17,7 @@
 const Auth = (() => {
   const USERS_URL = 'data/users.csv';
   const SESSION_KEY = 'gv_session';
-  const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 giờ
+  const SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 ngày
   const RECHECK_MS = 60 * 1000;               // kiểm tra lại CSV mỗi 60 giây
 
   // Hash giả dùng khi username không tồn tại, để thời gian phản hồi tương đương

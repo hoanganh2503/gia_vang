@@ -136,7 +136,7 @@ hoặc bất kỳ hosting tĩnh nào.
 | Đọc danh sách tài khoản từ `data/users.csv` trên máy chủ | ✅ |
 | Kiểm tra CSV: header, số cột, username, hash, role, status, trùng lặp | ✅ |
 | Kiểm tra lại CSV mỗi 60 giây → đăng xuất tài khoản bị khóa/xóa/đổi mật khẩu | ✅ (chỉ "cổng mềm", xem giới hạn) |
-| Phiên hết hạn sau 8 giờ hoặc khi đóng tab | ✅ |
+| Phiên hết hạn sau 3 ngày hoặc khi đóng tab | ✅ |
 | Công cụ tạo dòng CSV có hash: `tools/hash.html` | ✅ |
 | Lưu thay đổi thẳng lên máy chủ | ❌ Website tĩnh không ghi được lên máy chủ — ADMIN xuất CSV rồi tự tải lên |
 

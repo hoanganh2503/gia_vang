@@ -32,19 +32,17 @@ const signed = (n, d = 2) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtUS(Math.ab
 
 const state = { spot: null, fx: null, dom: null, tv: null, hist: {} };
 let typeCode = TYPES[0].code;
-let days = 30;
+let days = 7; // bắt đầu từ 7 ngày để mỗi loại vàng chạy đủ 7 → 30 → 90 ngày → 1 năm
 let chart = null;
 
 // ---------- Đồng hồ LED (giờ Việt Nam) ----------
 const fTime = new Intl.DateTimeFormat('vi-VN', { timeZone: TZ_VN, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-const fDate = new Intl.DateTimeFormat('vi-VN', { timeZone: TZ_VN, weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
 function tickClock() {
   const d = new Date();
   renderTickerTitle();
   // Mỗi ký tự một ô rộng cố định → khung không đổi độ rộng khi số nhảy
   $('led-time').innerHTML = [...fTime.format(d)]
     .map((ch) => `<span class="${ch === ':' ? 'c' : 'd'}">${ch}</span>`).join('');
-  $('led-date').textContent = fDate.format(d).toUpperCase();
 }
 
 // ---------- Widget TradingView ----------
@@ -82,18 +80,26 @@ function mountChart() {
 
 // ---------- Dữ liệu ----------
 // Giá + thay đổi trong ngày của các mã TradingView; mã nào lỗi thì bỏ qua mã đó
-function loadTv() {
-  return withCache('bg:tv', async () => {
-    const keys = Object.keys(TV);
-    const res = await Promise.allSettled(keys.map((k) => fetchJSON(URLS.tvQuote(TV[k]), { bust: true })));
-    const out = {};
-    res.forEach((r, i) => {
-      const v = r.value;
-      if (r.status === 'fulfilled' && valid(v?.close)) out[keys[i]] = { close: v.close, chg: Number(v.change_abs) || 0, pct: Number(v.change) || 0 };
-    });
-    if (!Object.keys(out).length) throw new Error('TradingView scanner không trả dữ liệu');
-    return out;
+// Giá + thay đổi trong ngày của cả 4 mã TradingView trong 1 lần gọi
+async function scanTv(timeout = 3000) {
+  const keys = Object.keys(TV);
+  const res = await fetch(URLS.tvScan[0], {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: JSON.stringify({ symbols: { tickers: keys.map((k) => TV[k]) }, columns: ['close', 'change', 'change_abs'] }),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(timeout),
   });
+  if (!res.ok) throw new Error(`TradingView scanner HTTP ${res.status}`);
+  const j = await res.json();
+  const out = {};
+  for (const row of j?.data || []) {
+    const k = keys.find((x) => TV[x] === row.s);
+    const [close, pct, chg] = row.d || [];
+    if (k && valid(close)) out[k] = { close, chg: Number(chg) || 0, pct: Number(pct) || 0 };
+  }
+  if (!Object.keys(out).length) throw new Error('TradingView scanner không trả dữ liệu');
+  return out;
 }
 
 // Giá bạc Phú Quý (file data/phuquy.json do GitHub Actions cập nhật); dòng "BẠC MIẾNG PHÚ QUÝ 999 1 LƯỢNG"
@@ -131,7 +137,9 @@ function setChange(el, diff, pct, d = 2) {
   const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
   const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '■';
   const p = Number.isFinite(pct) ? ` (${pct > 0 ? '+' : pct < 0 ? '−' : ''}${fmtUS(Math.abs(pct))}%)` : '';
-  el.textContent = `${arrow} ${signed(diff, d)}${p}`;
+  // Dòng giá vàng xếp 2 dòng: mũi tên + mức chênh / phần trăm
+  if (el.id === 'c-gold') el.innerHTML = `<span>${arrow} ${signed(diff, d)}</span><span>${p.trim()}</span>`;
+  else el.textContent = `${arrow} ${signed(diff, d)}${p}`;
   el.className = `${base} ${cls}`;
   el.title = 'So với phiên trước';
 }
@@ -139,6 +147,7 @@ function setChange(el, diff, pct, d = 2) {
 // Ghi giá trị; nếu số hiển thị khác lần trước thì nháy 1 cái và đổi màu theo hướng
 // (tăng xanh lá, giảm đỏ). Màu giữ nguyên tới lần thay đổi kế tiếp.
 const lastShown = {};
+const lastChangeAt = {};
 // src: tên nguồn của số; đổi nguồn (vd. từ dự phòng sang TradingView) thì không tính là tăng/giảm.
 function setValue(id, num, text, src = '') {
   const el = $(id);
@@ -147,6 +156,7 @@ function setValue(id, num, text, src = '') {
   if (!Number.isFinite(num)) return;
   lastShown[id] = { num, text, src };
   if (!prev || prev.text === text) return;
+  lastChangeAt[id] = Date.now(); // dùng cho thời gian nghỉ của nhảy số giả lập
   if (prev.src !== src) { el.classList.remove('tick-up', 'tick-down', 'flash-up', 'flash-down'); return; }
   const dir = num > prev.num ? 'up' : 'down';
   el.classList.remove('tick-up', 'tick-down', 'flash-up', 'flash-down');
@@ -176,12 +186,23 @@ function renderQuotes() {
   const g = spotChange(xau, tv.xau, valid(fx?.xau) ? 1 / fx.xau : NaN);
   setChange($('c-gold'), g.diff, g.pct, 3);
 
-  const perLuong = worldVndPerLuong(xau, fx?.vnd);
+  // jit.*: độ lệch giả lập ±0.01 (xem FAKE_TICK), về 0 mỗi khi API trả giá mới
+  const perLuong = worldVndPerLuong(xau, fx?.vnd) + (valid(xau) ? jit.convert * 1e6 : 0);
   setValue('v-convert', perLuong, valid(perLuong) ? fmtUS(perLuong / 1e6) : '—', xauSrc);
 
-  if (tv.dxy) {
-    setValue('v-dxy', tv.dxy.close, fmtUS(tv.dxy.close, 3), 'tv');
-    setChange($('c-dxy'), tv.dxy.chg, tv.dxy.pct, 3);
+  // Giá đã cộng độ lệch giả lập + mức thay đổi tính lại theo giá đóng cửa phiên trước
+  const shown = (q, j) => {
+    if (!q) return null;
+    const ref = q.close - q.chg;
+    const close = q.close + j;
+    return { close, chg: close - ref, pct: valid(ref) ? ((close - ref) / ref) * 100 : NaN };
+  };
+  const dxy = shown(tv.dxy, jit.dxy);
+  const wti = shown(tv.wti, jit.wti);
+
+  if (dxy) {
+    setValue('v-dxy', dxy.close, fmtUS(dxy.close, 3), 'tv');
+    setChange($('c-dxy'), dxy.chg, dxy.pct, 3);
   } else { // dự phòng: DXY tự tính từ tỷ giá theo ngày
     const now = computeDXY(fx);
     const prev = computeDXY(state.fx?.data?.prev);
@@ -190,11 +211,12 @@ function renderQuotes() {
     setChange($('c-dxy'), ok ? now - prev : NaN, ok ? ((now - prev) / prev) * 100 : NaN, 3);
   }
 
-  setValue('v-wti', tv.wti?.close, fmtUS(tv.wti?.close, 2));
-  setChange($('c-wti'), tv.wti ? tv.wti.chg : NaN, tv.wti?.pct, 2);
+  setValue('v-wti', wti?.close, fmtUS(wti?.close, 2));
+  setChange($('c-wti'), wti ? wti.chg : NaN, wti?.pct, 2);
 
-  setValue('v-silver', xag, fmtUS(xag, 5), tv.xag ? 'tv' : 'gold-api');
-  const sv = spotChange(xag, tv.xag, valid(fx?.xag) ? 1 / fx.xag : NaN);
+  const xagShown = valid(xag) ? xag + jit.xag : xag;
+  setValue('v-silver', xagShown, fmtUS(xagShown, 5), tv.xag ? 'tv' : 'gold-api');
+  const sv = spotChange(xagShown, tv.xag, valid(fx?.xag) ? 1 / fx.xag : NaN);
   setChange($('c-silver'), sv.diff, sv.pct, 5);
 
   // Bạc Phú Quý 1 lượng (VND)
@@ -388,7 +410,7 @@ let lastSlow = 0;
 async function refreshFast() {
   if (fastBusy) return;
   fastBusy = true;
-  await Promise.all([settle('spot', loadSpot()), settle('dom', loadDomestic()), settle('tv', loadTv()), URLS.phuquy.length && settle('pq', loadPhuQuy())]);
+  await Promise.all([settle('spot', loadSpot()), settle('dom', loadDomestic()), URLS.phuquy.length && settle('pq', loadPhuQuy())]);
   fastBusy = false;
   renderQuotes();
   renderChart();
@@ -401,13 +423,87 @@ async function refreshSlow() {
   renderChart();
 }
 
+// ---------- Nhảy số giả lập ----------
+// Cứ 0,5–1 giây, tối đa 1 trong các dòng Quy đổi, DXY, WTI, Bạc thế giới lệch ±0.01 quanh giá thật
+// (hoặc trở về giá thật) cho có cảm giác nhảy số. Mỗi dòng nghỉ ≥ 3 giây giữa 2 lần đổi số; độ lệch không quá 0.01.
+// Đây là số KHÔNG có thật — đặt FAKE_TICK = false để tắt. (Giá vàng không giả lập: đi theo biểu đồ nến.)
+const FAKE_TICK = true;
+const jit = { convert: 0, dxy: 0, wti: 0, xag: 0 };
+const JIT_ID = { convert: 'v-convert', dxy: 'v-dxy', wti: 'v-wti', xag: 'v-silver' };
+const JIT_REST_MS = 3000; // dòng vừa đổi số (thật hay giả) phải nghỉ ít nhất 3 giây
+let jitTimer = null;
+function scheduleJitter() {
+  clearTimeout(jitTimer);
+  if (!FAKE_TICK) return;
+  jitTimer = setTimeout(() => {
+    // Mỗi lượt tối đa 1 dòng nhảy, chỉ chọn trong các dòng đã nghỉ đủ lâu.
+    // Dòng đang lệch thì lượt của nó đưa về giá thật; dòng đang đúng giá thì lệch ±0.01.
+    const now = Date.now();
+    const ready = Object.keys(jit).filter((k) => now - (lastChangeAt[JIT_ID[k]] || 0) >= JIT_REST_MS);
+    if (ready.length) {
+      const k = ready[Math.floor(Math.random() * ready.length)];
+      jit[k] = jit[k] !== 0 ? 0 : (Math.random() < 0.5 ? -0.01 : 0.01);
+      renderQuotes();
+    }
+    scheduleJitter();
+  }, 500 + Math.random() * 500);
+}
+
+// Bảng chỉ số (vàng, quy đổi, DXY, WTI, bạc) cập nhật mỗi 1 giây: 1 lần gọi lấy cả 4 mã.
+// Lượt nào lỗi thì giữ số cũ, lượt sau thử lại.
+const LIVE_MS = 1000;
+let liveBusy = false;
+async function refreshLive() {
+  if (liveBusy) return;
+  liveBusy = true;
+  try {
+    const data = await scanTv();
+    state.tv = { data: { ...(state.tv?.data || {}), ...data }, at: Date.now(), cached: false };
+    renderQuotes();
+  } catch { /* lượt sau thử lại */ } finally {
+    liveBusy = false;
+  }
+}
+
+// Biểu đồ trong nước tự chuyển mỗi phút: 7 → 30 → 90 ngày → 1 năm, rồi sang loại vàng kế tiếp, lặp vòng.
+// Bấm tab thì đếm lại 1 phút từ lựa chọn đó.
+const DAY_STEPS = [7, 30, 90, 365];
+const ROTATE_MS = 60 * 1000;
+let rotateTimer = null;
+function restartRotate() {
+  clearInterval(rotateTimer);
+  rotateTimer = setInterval(() => {
+    const di = DAY_STEPS.indexOf(days);
+    if (di >= 0 && di < DAY_STEPS.length - 1) {
+      selectChart(typeCode, DAY_STEPS[di + 1]);
+    } else {
+      const ti = TYPES.findIndex((t) => t.code === typeCode);
+      selectChart(TYPES[(ti + 1) % TYPES.length].code, DAY_STEPS[0]);
+    }
+  }, ROTATE_MS);
+}
+
+async function selectChart(code, d) {
+  typeCode = code;
+  days = d;
+  renderTabs();
+  renderChart();
+  if (!state.hist[code]) {
+    await ensureHist(code);
+    if (typeCode === code) renderChart();
+  }
+}
+
 function start() {
   stop();
   timers.push(setInterval(tickClock, 1000));
+  timers.push(setInterval(refreshLive, LIVE_MS));
+  restartRotate();
+  scheduleJitter();
   timers.push(setInterval(refreshFast, REFRESH_MS));
   timers.push(setInterval(refreshSlow, SLOW_REFRESH_MS));
 }
-function stop() { timers.forEach(clearInterval); timers = []; }
+function stop() { timers.forEach(clearInterval); timers = []; clearInterval(rotateTimer); clearTimeout(jitTimer); }
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { stop(); return; }
@@ -428,20 +524,9 @@ document.addEventListener('click', async (e) => {
     return;
   }
   const t = e.target.closest('[data-type]');
-  if (t) {
-    typeCode = t.dataset.type;
-    renderTabs();
-    renderChart();
-    await ensureHist(typeCode);
-    renderChart();
-    return;
-  }
+  if (t) { selectChart(t.dataset.type, days); restartRotate(); return; }
   const d = e.target.closest('[data-days]');
-  if (d) {
-    days = Number(d.dataset.days);
-    renderTabs();
-    renderChart();
-  }
+  if (d) { selectChart(typeCode, Number(d.dataset.days)); restartRotate(); }
 });
 
 function boot() {
@@ -449,6 +534,7 @@ function boot() {
   renderTabs();
   renderIntervals();
   mountChart();
+  refreshLive();
   refreshFast();
   refreshSlow();
   start();
