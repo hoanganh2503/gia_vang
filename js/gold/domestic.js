@@ -8,6 +8,7 @@ import {
 } from './format.js';
 import { $, setStatus, errorHTML, tickHTML } from './ui.js';
 import { worldVndPerLuong } from './world-gold.js';
+import { loadVietnamnet, shortPlace, VN_MS } from './vietnamnet.js';
 
 // Giá 1 lượng hợp lệ: số dương trong khoảng 10 triệu – 1 tỷ đồng
 const okPrice = (n) => typeof n === 'number' && Number.isFinite(n) && n > 1e7 && n < 1e9;
@@ -65,16 +66,29 @@ async function fetchPNJ() {
   return { items, updatedAt: parseVNDate(j.updateDate) };
 }
 
-// Gọi hai nguồn độc lập; nguồn nào lỗi thì dùng dữ liệu đã lưu của nguồn đó.
+// Bảng các thương hiệu (vietnamnet, giống bảng chạy ở bang-gia.html): trang nặng nên chỉ tải lại mỗi phút,
+// giữa các lần thì dùng lại kết quả trước.
+let vnRes = null;
+let vnAt = 0;
+async function loadVn() {
+  if (vnRes && Date.now() - vnAt < VN_MS) return vnRes;
+  vnAt = Date.now();
+  try { vnRes = await withCache('gv:bg:vn', loadVietnamnet); } catch (e) { console.warn('[gia_vang] vietnamnet:', e?.message || e); }
+  return vnRes;
+}
+
+// Gọi các nguồn độc lập; nguồn nào lỗi thì dùng dữ liệu đã lưu của nguồn đó.
 export async function loadDomestic() {
-  const [vt, pnj] = await Promise.allSettled([
+  const [vt, pnj, vn] = await Promise.allSettled([
     withCache('dom:vt', fetchVangToday),
     withCache('dom:pnj', fetchPNJ),
+    loadVn(),
   ]);
   const parts = [];
   if (vt.status === 'fulfilled') parts.push({ name: 'vang.today', ...vt.value });
   if (pnj.status === 'fulfilled') parts.push({ name: 'PNJ', ...pnj.value });
-  if (!parts.length) throw vt.reason || pnj.reason;
+  const vnData = vn.status === 'fulfilled' && vn.value?.data?.rows?.length ? vn.value : null;
+  if (!parts.length && !vnData) throw vt.reason || pnj.reason;
 
   const items = parts.flatMap((p) => p.data.items);
   const find = (code) => items.find((i) => i.code === code);
@@ -89,9 +103,10 @@ export async function loadDomestic() {
       sjcLabel: sjc ? `${sjc.source}` : '',
       ringSell: ring?.sell ?? null,
       sources: parts.map((p) => ({ name: p.name, updatedAt: p.data.updatedAt, cached: p.cached, at: p.at })),
+      vn: vnData ? { rows: vnData.data.rows, updated: vnData.data.updated, cached: vnData.cached } : null,
     },
-    cached: parts.every((p) => p.cached),
-    at: Math.max(...parts.map((p) => p.at)),
+    cached: vnData ? vnData.cached : parts.every((p) => p.cached),
+    at: Math.max(...parts.map((p) => p.at), vnData?.at || 0),
   };
 }
 
@@ -132,7 +147,7 @@ export function renderDomesticTable(card, state) {
     setStatus(card, null);
     return;
   }
-  const { items, sources, sjcSell, sjcLabel } = res.data;
+  const { items, sources, sjcSell, sjcLabel, vn } = res.data;
   const sorted = [...items].sort((a, b) => {
     const ta = TYPE_ORDER[a.type] - TYPE_ORDER[b.type];
     if (ta) return ta;
@@ -141,7 +156,20 @@ export function renderDomesticTable(card, state) {
     return (sa < 0 ? 99 : sa) - (sb < 0 ? 99 : sb);
   });
 
-  const rows = sorted.map((i) => {
+  const changeLine = (ch, txt) => (ch ? `<br><small class="change ${trend(ch).cls}">${escapeHTML(txt || fmtSigned(ch))}</small>` : '');
+  // Có bảng vietnamnet thì hiện y như bảng chạy ở màn hình bảng giá: SJC liền một loạt, rồi các thương hiệu khác
+  const vnRows = vn?.rows?.map((r, idx) => {
+    const spread = okPrice(r.buy) && okPrice(r.sell) ? r.sell - r.buy : null;
+    const tip = r.filled ? ` title="SJC không niêm yết riêng nơi này, giá chép từ dòng &quot;${escapeHTML(r.from)}&quot;"` : '';
+    return `<tr${tip}>
+      <td>${escapeHTML(r.brand)}</td>
+      <td>${escapeHTML(shortPlace(r.name))}</td>
+      <td class="num">${money(okPrice(r.buy) ? r.buy : null, `dom:v${idx}:buy`, r.changeBuy)}${changeLine(r.changeBuy, r.chBuyText)}</td>
+      <td class="num">${money(okPrice(r.sell) ? r.sell : null, `dom:v${idx}:sell`, r.changeSell)}${changeLine(r.changeSell, r.chSellText)}</td>
+      <td class="num">${money(spread)}</td>
+    </tr>`;
+  }).join('');
+  const rows = vnRows || sorted.map((i) => {
     const spread = okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : null;
     const ch = i.changeSell ? trend(i.changeSell) : null;
     return `<tr>
@@ -160,16 +188,16 @@ export function renderDomesticTable(card, state) {
   const gapT = trend(gap);
 
   body.innerHTML = `
-    <div class="table-wrap">
+    <div class="table-wrap${vnRows ? ' table-wrap--scroll' : ''}">
       <table class="table">
-        <thead><tr><th scope="col">Nguồn</th><th scope="col">Loại vàng</th><th scope="col" class="num">Mua vào</th><th scope="col" class="num">Bán ra</th><th scope="col" class="num">Chênh lệch mua–bán</th></tr></thead>
+        <thead><tr><th scope="col">${vnRows ? 'Thương hiệu' : 'Nguồn'}</th><th scope="col">Loại vàng</th><th scope="col" class="num">Mua vào</th><th scope="col" class="num">Bán ra</th><th scope="col" class="num">Chênh lệch mua–bán</th></tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="2">Thế giới quy đổi (không thuế, phí)</td><td class="num">—</td><td class="num">${Number.isFinite(world) ? money(world, 'world-table') : '—'}</td><td class="num">—</td></tr></tfoot>
       </table>
     </div>
     <p class="gap-line">Chênh lệch giá bán vàng miếng SJC (${escapeHTML(sjcLabel || '—')}) so với thế giới quy đổi:
       <strong class="change ${gapT.cls}">${Number.isFinite(gap) ? `<span aria-hidden="true">${gapT.arrow}</span> ${fmtSigned(gap)} đ/lượng (${fmtPct((gap / world) * 100, 1)})` : '—'}</strong></p>
-    <p class="note">Đơn vị: đồng/lượng. Giá niêm yết: ${sources.map((s) => `${escapeHTML(s.name)} ${s.updatedAt ? fmtDateTime(s.updatedAt) : '—'}${s.cached ? ' <em>(lỗi, đang hiện dữ liệu đã lưu)</em>' : ''}`).join(' · ')}</p>`;
+    <p class="note">Đơn vị: đồng/lượng. ${vnRows ? `Bảng giá: vietnamnet${vn.updated ? ` ${escapeHTML(vn.updated)}` : ''}${vn.cached ? ' <em>(lỗi, đang hiện dữ liệu đã lưu)</em>' : ''}. SJC không niêm yết ở tỉnh nào thì giá chép từ SJC HCM. ` : ''}Giá niêm yết: ${sources.map((s) => `${escapeHTML(s.name)} ${s.updatedAt ? fmtDateTime(s.updatedAt) : '—'}${s.cached ? ' <em>(lỗi, đang hiện dữ liệu đã lưu)</em>' : ''}`).join(' · ')}</p>`;
   // Giá trong nước chỉ đổi vài lần mỗi ngày nên không gắn nhãn "cũ" theo giờ niêm yết.
   setStatus(card, res);
 }

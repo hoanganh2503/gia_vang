@@ -107,6 +107,9 @@
 
 /* ---------- Bảng giá trong nước (khối 8) ---------- */
 .table td { vertical-align: top; }
+/* Bảng giá các thương hiệu (vietnamnet) dài hơn 100 dòng: khung cuộn, giữ hàng tiêu đề cột */
+.table-wrap--scroll { max-height: 36rem; overflow-y: auto; }
+.table-wrap--scroll thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }
 .table tfoot td { color: var(--muted); font-style: italic; border-bottom: 0; }
 .table .short { display: none; }
 @media (max-width: 520px) {

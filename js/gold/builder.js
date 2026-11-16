@@ -9,6 +9,7 @@ const SORTABLE_URL = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.mi
 const SRC = {
   goldApi: '<a href="https://gold-api.com" target="_blank" rel="noopener">gold-api.com</a>',
   currency: '<a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener">currency-api</a>',
+  vietnamnet: '<a href="https://dantocphattrien.vietnamnet.vn/gia-vang" target="_blank" rel="noopener">vietnamnet</a>',
   vangToday: '<a href="https://www.vang.today" target="_blank" rel="noopener">vang.today</a>',
   pnj: '<a href="https://giavang.pnj.com.vn" target="_blank" rel="noopener">PNJ</a>',
 };
@@ -59,7 +60,7 @@ const COMPONENTS = {
     html: `<div id="domestic-table" class="card">
       <header class="card__head"><h2>Giá vàng trong nước</h2><span class="badge" data-badge hidden></span></header>
       <div data-body><div class="skeleton skeleton--tall"></div></div>
-      <footer class="card__foot">Nguồn: ${SRC.vangToday}, ${SRC.pnj} · tải lúc <time data-at>—</time></footer>
+      <footer class="card__foot">Nguồn: ${SRC.vietnamnet}, ${SRC.vangToday}, ${SRC.pnj} · tải lúc <time data-at>—</time></footer>
     </div>`,
   },
   'tv-gold': {
