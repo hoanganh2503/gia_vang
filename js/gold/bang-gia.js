@@ -470,7 +470,7 @@ async function refreshLive() {
 // Biểu đồ trong nước tự chuyển sau mỗi ROTATE_MS: 7 → 30 → 90 ngày → 1 năm, rồi sang loại vàng kế tiếp, lặp vòng.
 // Bấm tab thì đếm lại từ lựa chọn đó.
 const DAY_STEPS = [7, 30, 90, 365];
-const ROTATE_MS = 5 * 1000; // ĐANG TEST: 5 giây/lần. Chạy thật đổi lại 60 * 1000 (1 phút)
+const ROTATE_MS = 30 * 1000; // 30 giây/lần
 // Cách chạy: một nhịp 1 giây riêng (không bị start()/stop() hủy) so giờ hiện tại với mốc rotateAt,
 // quá mốc thì chuyển và đặt mốc mới. Lỗi khi vẽ biểu đồ hay tải dữ liệu không làm dừng việc chuyển tab.
 let rotateAt = Infinity; // đặt mốc khi boot()
