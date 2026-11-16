@@ -199,7 +199,7 @@ body {
   font-size: 15.5cqh; line-height: 1; letter-spacing: .01em; white-space: nowrap;
   font-stretch: expanded;
 }
-.ticker__head, .t-row { display: grid; grid-template-columns: 33% 28% 28% 11%; }
+.ticker__head, .t-row { display: grid; grid-template-columns: 36% 26.5% 26.5% 11%; }
 .ticker__head {
   min-height: 0; background: var(--maroon); color: var(--gold-light);
   font-weight: 900; font-size: 7cqh; line-height: 1; text-transform: uppercase;
@@ -222,10 +222,22 @@ body {
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .t-row > span:last-child { border-right: 0; }
-.t-name { padding: 0 2cqh; overflow: hidden; text-overflow: ellipsis; display: block !important; line-height: 21cqh !important; }
+/* Tên loại vàng (thương hiệu + loại): tối đa 2 dòng, dài hơn thì cắt bằng … */
+.t-name { padding: 0 2cqh; overflow: hidden; }
+.t-row > .t-name { font-size: 7.6cqh; }
+.t-name > span {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; white-space: normal; line-height: 1.12;
+}
 .t-num { justify-content: center; }
 /* Giá trong bảng chạy: to hơn tên loại vàng (~1,4 lần) */
-.t-row > .t-num { font-size: 13.5cqh; letter-spacing: -.01em; }
+.t-row > .t-num { font-size: 12.5cqh; letter-spacing: -.01em; }
+.t-p { font-weight: 900; }
+/* Mức chênh nằm bên phải giá */
+.t-chg { margin-left: 1.6cqh; font-size: 7cqh; font-weight: 800; letter-spacing: 0; }
+.t-chg.up { color: var(--up); }
+.t-chg.down { color: var(--down); }
+.t-chg.flat { color: var(--muted); }
 /* Hàng xen kẽ nền xám nhạt */
 .t-row.is-alt > span { background: var(--cream); }
 /* Màu theo thay đổi so với hôm trước; khi giá vừa đổi trong lúc xem thì màu tick-up/down bên dưới đè lên */

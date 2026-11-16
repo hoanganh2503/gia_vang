@@ -30,7 +30,7 @@ const NF = { 0: nf(0), 2: nf(2) };
 const fmtUS = (n, d = 2) => (Number.isFinite(n) ? (NF[d] || nf(d)).format(n) : '—');
 const signed = (n, d = 2) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtUS(Math.abs(n), d)}`;
 
-const state = { spot: null, fx: null, dom: null, tv: null, hist: {} };
+const state = { spot: null, fx: null, dom: null, tv: null, vn: null, hist: {} };
 let typeCode = TYPES[0].code;
 let days = 7; // bắt đầu từ 7 ngày để mỗi loại vàng chạy đủ 7 → 30 → 90 ngày → 1 năm
 let chart = null;
@@ -114,6 +114,76 @@ function loadPhuQuy() {
     if (!item) throw new Error('Không thấy dòng bạc 1 lượng');
     return { buy: item.buy, sell: item.sell, name: item.name, lastTime: j.lastTime, lastDate: j.lastDate };
   });
+}
+
+// ---------- Bảng giá các thương hiệu (dantocphattrien.vietnamnet.vn) ----------
+// Trang HTML có Access-Control-Allow-Origin: *, nên đọc thẳng và lấy bảng #gv-price-body.
+// Mỗi dòng: thương hiệu, loại vàng, mua (data-num), bán (data-num), mức chênh (span.t-chg), giờ cập nhật.
+const VN_MS = 60 * 1000; // trang ~120 KB nên chỉ tải lại mỗi phút
+let lastVn = 0;
+
+// 63 tỉnh thành cũ (trước sáp nhập 2025). SJC chỉ niêm yết vài nơi; tỉnh nào thiếu thì
+// thêm dòng "Vàng SJC 1L, 10L, 1KG" chép giá từ dòng SJC có sẵn (ưu tiên TP. Hồ Chí Minh).
+const OLD_PROVINCES = [
+  'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu', 'Bắc Ninh', 'Bến Tre', 'Bình Định',
+  'Bình Dương', 'Bình Phước', 'Bình Thuận', 'Cà Mau', 'Cần Thơ', 'Cao Bằng', 'Đà Nẵng', 'Đắk Lắk', 'Đắk Nông',
+  'Điện Biên', 'Đồng Nai', 'Đồng Tháp', 'Gia Lai', 'Hà Giang', 'Hà Nam', 'Hà Nội', 'Hà Tĩnh', 'Hải Dương',
+  'Hải Phòng', 'Hậu Giang', 'Hòa Bình', 'Hưng Yên', 'Khánh Hòa', 'Kiên Giang', 'Kon Tum', 'Lai Châu', 'Lâm Đồng',
+  'Lạng Sơn', 'Lào Cai', 'Long An', 'Nam Định', 'Nghệ An', 'Ninh Bình', 'Ninh Thuận', 'Phú Thọ', 'Phú Yên',
+  'Quảng Bình', 'Quảng Nam', 'Quảng Ngãi', 'Quảng Ninh', 'Quảng Trị', 'Sóc Trăng', 'Sơn La', 'Tây Ninh',
+  'Thái Bình', 'Thái Nguyên', 'Thanh Hóa', 'Thừa Thiên Huế', 'Tiền Giang', 'TP. Hồ Chí Minh', 'Trà Vinh',
+  'Tuyên Quang', 'Vĩnh Long', 'Vĩnh Phúc', 'Yên Bái',
+];
+// Tên nơi bán trên bảng SJC khác tên tỉnh
+const PROVINCE_ALIAS = {
+  'Quảng Ninh': ['Hạ Long'], 'Đồng Nai': ['Biên Hòa'], 'Thừa Thiên Huế': ['Huế'],
+  'TP. Hồ Chí Minh': ['Hồ Chí Minh', 'TPHCM'],
+};
+const SJC_BAR = 'Vàng SJC 1L, 10L, 1KG';
+// So khớp không dấu, không phân biệt hoa thường ("Hòa" = "Hoà")
+const fold = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().trim();
+
+function parseChange(el) {
+  if (!el) return { ch: undefined, text: '' };
+  const text = el.textContent.trim();
+  const n = Number(text.replace(/[^\d]/g, '')) || 0;
+  return { ch: el.classList.contains('down') ? -n : n, text };
+}
+
+function fillSjcProvinces(rows) {
+  const sjc = rows.filter((r) => r.brand === 'SJC');
+  const bars = sjc.filter((r) => fold(r.name).endsWith(fold(SJC_BAR)));
+  const tpl = bars.find((r) => fold(r.name).startsWith(fold('TP. Hồ Chí Minh'))) || bars[0];
+  if (!tpl) return rows;
+  const has = (p) => [p, ...(PROVINCE_ALIAS[p] || [])].some((a) => sjc.some((r) => fold(r.name).startsWith(fold(a))));
+  const filled = OLD_PROVINCES.filter((p) => !has(p)).map((p) => ({
+    ...tpl, name: `${p} ${SJC_BAR}`, filled: true, from: tpl.name,
+  }));
+  const lastSjc = rows.lastIndexOf(sjc[sjc.length - 1]);
+  return [...rows.slice(0, lastSjc + 1), ...filled, ...rows.slice(lastSjc + 1)];
+}
+
+async function loadVietnamnet() {
+  const res = await fetch(URLS.vietnamnet[0], { cache: 'no-store', signal: AbortSignal.timeout(12000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+  const trs = [...doc.querySelectorAll('#gv-price-body tr')];
+  if (!trs.length) throw new Error('không thấy bảng #gv-price-body');
+  const rows = trs.map((tr) => {
+    const td = tr.querySelectorAll('td');
+    if (td.length < 4) return null;
+    const num = (c) => Number(c.dataset.num) || 0;
+    const b = parseChange(td[2].querySelector('.t-chg'));
+    const s = parseChange(td[3].querySelector('.t-chg'));
+    return {
+      brand: td[0].textContent.trim(), name: td[1].textContent.trim(),
+      buy: num(td[2]), sell: num(td[3]),
+      changeBuy: b.ch, changeSell: s.ch, chBuyText: b.text, chSellText: s.text,
+      time: td[4]?.textContent.trim() || '',
+    };
+  }).filter((r) => r && r.brand !== 'XAU' && (okPrice(r.buy) || okPrice(r.sell))); // XAU tính bằng USD → bỏ
+  const caption = doc.querySelector('#gv-price-table caption')?.textContent.trim() || '';
+  return { rows: fillSjcProvinces(rows), updated: caption.match(/Cập nhật ([^·]+)/)?.[1]?.trim() || '' };
 }
 
 function loadHist(code) {
@@ -315,45 +385,79 @@ const SECONDS_PER_ROW = 3;
 let tickerKeys = '';
 
 const vnd = (n) => (okPrice(n) ? fmtVND(n) : '—');
-const spreadK = (i) => (okPrice(i.buy) && okPrice(i.sell) ? `${fmtVND((i.sell - i.buy) / 1000)}K` : '—');
+const gapOf = (i) => (okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : NaN);
+const gapText = (g) => (Number.isFinite(g) ? `${fmtVND(g / 1000)}K` : '—');
+const chText = (ch) => (!Number.isFinite(ch) ? '' : ch > 0 ? `▲ +${fmtVND(ch)}` : ch < 0 ? `▼ ${fmtVND(-ch)}` : '▲ +0');
 
+// Dòng của bảng chạy: ưu tiên bảng vietnamnet (đủ thương hiệu); lỗi thì dùng giá vang.today như trước.
+// Mỗi dòng: { key, name, title, buy, sell, changeBuy, changeSell, chBuyText, chSellText }
 function tickerRows() {
+  const vn = state.vn?.data?.rows;
+  if (vn?.length) {
+    return vn.map((r, idx) => ({
+      ...r,
+      key: `v${idx}`,
+      name: `${r.brand} ${r.name}`.toUpperCase(),
+      title: `${r.brand} — ${r.name}${r.time ? ` · cập nhật ${r.time}` : ''}`
+        + (r.filled ? ` · SJC không niêm yết riêng nơi này, giá chép từ dòng "${r.from}"` : ''),
+    }));
+  }
   const items = state.dom?.data?.items || [];
   return [...items]
     .filter((i) => okPrice(i.buy) || okPrice(i.sell))
     .sort((a, b) => (TYPE_ORDER[a.type] - TYPE_ORDER[b.type])
-      || ((SOURCE_ORDER.indexOf(a.source) + 1 || 99) - (SOURCE_ORDER.indexOf(b.source) + 1 || 99)));
+      || ((SOURCE_ORDER.indexOf(a.source) + 1 || 99) - (SOURCE_ORDER.indexOf(b.source) + 1 || 99)))
+    .map((i) => {
+      // Tên + nơi bán, bỏ phần trùng (vd. "Vàng miếng SJC" của SJC → không thêm "SJC" lần nữa)
+      const name = (i.name.toUpperCase().includes(i.source.toUpperCase()) ? i.name : `${i.name} ${i.source}`).toUpperCase();
+      return { ...i, key: i.code, name, title: name, chBuyText: chText(i.changeBuy), chSellText: chText(i.changeSell) };
+    });
 }
 
-// Giá kèm mũi tên + màu theo thay đổi so với hôm trước (vang.today: change_buy / change_sell)
+// Giá tô màu theo mức chênh; mức chênh (▲ +x / ▼ x) hiện ngay bên phải giá
 const dayCls = (ch) => (ch > 0 ? 'day-up' : ch < 0 ? 'day-down' : '');
-const priceText = (n, ch) => `${ch > 0 ? '▲ ' : ch < 0 ? '▼ ' : ''}${vnd(n)}`;
-const dayTitle = (ch) => (ch ? `So với hôm trước: ${ch > 0 ? '+' : '−'}${fmtVND(Math.abs(ch))} đ` : 'Không đổi so với hôm trước');
+const chgCls = (ch) => (ch > 0 ? 'up' : ch < 0 ? 'down' : 'flat');
+const dayTitle = (ch) => (Number.isFinite(ch) && ch ? `Chênh lệch: ${ch > 0 ? '+' : '−'}${fmtVND(Math.abs(ch))} đ` : 'Không đổi');
+
+function priceCell(key, n, ch, chTxt) {
+  return `<span class="t-num ${dayCls(ch)}" data-k="${key}" data-v="${okPrice(n) ? n : ''}" title="${dayTitle(ch)}">`
+    + `<b class="t-p">${vnd(n)}</b>`
+    + (okPrice(n) && chTxt ? `<small class="t-chg ${chgCls(ch)}">${escapeHTML(chTxt)}</small>` : '')
+    + '</span>';
+}
 
 function rowHTML(i, idx) {
-  // Tên + nơi bán, bỏ phần trùng (vd. "Vàng miếng SJC" của SJC → không thêm "SJC" lần nữa)
-  const name = (i.name.toUpperCase().includes(i.source.toUpperCase()) ? i.name : `${i.name} ${i.source}`).toUpperCase();
+  const g = gapOf(i);
   return `<div class="t-row${idx % 2 ? ' is-alt' : ''}">
-    <span class="t-name" title="${escapeHTML(name)}">${escapeHTML(name)}</span>
-    <span class="t-num ${dayCls(i.changeBuy)}" data-k="${i.code}:buy" title="${dayTitle(i.changeBuy)}">${priceText(i.buy, i.changeBuy)}</span>
-    <span class="t-num ${dayCls(i.changeSell)}" data-k="${i.code}:sell" title="${dayTitle(i.changeSell)}">${priceText(i.sell, i.changeSell)}</span>
-    <span class="t-num" data-k="${i.code}:gap">${spreadK(i)}</span>
+    <span class="t-name" title="${escapeHTML(i.title)}"><span>${escapeHTML(i.name)}</span></span>
+    ${priceCell(`${i.key}:buy`, i.buy, i.changeBuy, i.chBuyText)}
+    ${priceCell(`${i.key}:sell`, i.sell, i.changeSell, i.chSellText)}
+    <span class="t-num" data-k="${i.key}:gap" data-v="${Number.isFinite(g) ? g : ''}"><b class="t-p">${gapText(g)}</b></span>
   </div>`;
 }
 
-// Nháy + đổi màu ô khi giá đổi (cả 2 bản sao của dòng trong vòng cuộn)
-function updateCell(key, num, text, dayCh) {
+// Cập nhật số tại chỗ (cả 2 bản sao của dòng trong vòng cuộn); nháy + đổi màu khi giá đổi
+function updateCell(key, num, ch, chTxt) {
+  const isGap = key.endsWith(':gap');
+  const text = isGap ? gapText(num) : vnd(num);
   document.querySelectorAll(`[data-k="${key}"]`).forEach((el) => {
-    if (dayCh !== undefined) {
+    if (!isGap) {
       el.classList.remove('day-up', 'day-down');
-      if (dayCls(dayCh)) el.classList.add(dayCls(dayCh));
-      el.title = dayTitle(dayCh);
+      if (dayCls(ch)) el.classList.add(dayCls(ch));
+      el.title = dayTitle(ch);
+      let c = el.querySelector('.t-chg');
+      if (okPrice(num) && chTxt) {
+        if (!c) { c = document.createElement('small'); el.append(c); }
+        c.className = `t-chg ${chgCls(ch)}`;
+        if (c.textContent !== chTxt) c.textContent = chTxt;
+      } else c?.remove();
     }
-    if (el.textContent === text) return;
+    const p = el.querySelector('.t-p');
+    if (p.textContent === text) return;
     const prev = Number(el.dataset.v);
-    el.textContent = text;
-    el.dataset.v = num ?? '';
-    if (!Number.isFinite(prev) || !Number.isFinite(num) || prev === num) return;
+    p.textContent = text;
+    el.dataset.v = Number.isFinite(num) ? num : '';
+    if (!el.dataset.v || !Number.isFinite(prev) || prev === num) return;
     const dir = num > prev ? 'up' : 'down';
     el.classList.remove('tick-up', 'tick-down', 'flash-up', 'flash-down');
     void el.offsetWidth;
@@ -364,18 +468,22 @@ function updateCell(key, num, text, dayCh) {
 function renderTicker() {
   const body = $('ticker-body');
   const rows = tickerRows();
+  const vn = state.vn?.data;
+  $('ticker-title').title = vn?.rows?.length
+    ? `Nguồn: dantocphattrien.vietnamnet.vn/gia-vang${vn.updated ? ` — cập nhật ${vn.updated}` : ''}${state.vn.cached ? ' (đang hiện dữ liệu đã lưu)' : ''}`
+    : 'Nguồn: vang.today / PNJ (chưa tải được bảng vietnamnet)';
   if (!rows.length) {
-    if (!state.dom) body.innerHTML = '<p class="t-msg">Đang tải giá trong nước…</p>';
+    if (!state.dom && !state.vn) body.innerHTML = '<p class="t-msg">Đang tải giá trong nước…</p>';
     tickerKeys = '';
     return;
   }
-  const keys = rows.map((i) => i.code).join('|');
+  const keys = rows.map((i) => `${i.key}=${i.name}`).join('|');
   if (keys === tickerKeys) {
     // Cùng danh sách: chỉ cập nhật số, không dựng lại để vòng cuộn không bị giật
     for (const i of rows) {
-      updateCell(`${i.code}:buy`, i.buy, priceText(i.buy, i.changeBuy), i.changeBuy);
-      updateCell(`${i.code}:sell`, i.sell, priceText(i.sell, i.changeSell), i.changeSell);
-      updateCell(`${i.code}:gap`, okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : NaN, spreadK(i));
+      updateCell(`${i.key}:buy`, i.buy, i.changeBuy, i.chBuyText);
+      updateCell(`${i.key}:sell`, i.sell, i.changeSell, i.chSellText);
+      updateCell(`${i.key}:gap`, gapOf(i));
     }
     return;
   }
@@ -384,11 +492,6 @@ function renderTicker() {
   const loop = rows.length > VISIBLE_ROWS;
   // Lặp vòng: 2 bản sao nối nhau, cuộn đúng 1 bản (−50%) rồi quay về đầu, không thấy chỗ nối
   body.innerHTML = `<div class="t-track${loop ? ' is-loop' : ''}" style="--dur:${rows.length * SECONDS_PER_ROW}s">${list}${loop ? list : ''}</div>`;
-  body.querySelectorAll('[data-k]').forEach((el) => {
-    const [code, k] = el.dataset.k.split(':');
-    const i = rows.find((r) => r.code === code);
-    el.dataset.v = k === 'gap' ? (okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : '') : (i[k] ?? '');
-  });
 }
 
 // Tiêu đề: GIÁ VÀNG SÁNG NAY / CHIỀU NAY / TỐI NAY dd/mm/yyyy (giờ Việt Nam)
@@ -411,7 +514,13 @@ let lastSlow = 0;
 async function refreshFast() {
   if (fastBusy) return;
   fastBusy = true;
-  await Promise.all([settle('spot', loadSpot()), settle('dom', loadDomestic()), URLS.phuquy.length && settle('pq', loadPhuQuy())]);
+  const vnDue = Date.now() - lastVn >= VN_MS;
+  if (vnDue) lastVn = Date.now();
+  await Promise.all([
+    settle('spot', loadSpot()), settle('dom', loadDomestic()),
+    URLS.phuquy.length && settle('pq', loadPhuQuy()),
+    vnDue && settle('vn', withCache('gv:bg:vn', loadVietnamnet)),
+  ]);
   fastBusy = false;
   renderQuotes();
   renderChart();

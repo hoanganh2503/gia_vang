@@ -56,6 +56,7 @@ Nhấp đúp để bật/tắt toàn màn hình. Mỗi nhãn chỉ số là link
 | Quy đổi triệu/lượng | giá vàng × USD/VND (currency-api) |
 | Bạc Phú Quý 1 lượng | `giabac.phuquygroup.vn` → `data/phuquy.json` (GitHub Actions, 5–15 phút/lần) |
 | Biểu đồ vàng trong nước | `vang.today` |
+| Bảng chạy GIÁ VÀNG … NAY | bảng `#gv-price-body` của `dantocphattrien.vietnamnet.vn/gia-vang` (HTML, CORS `*`, 1 phút/lần; bỏ dòng XAU vì tính bằng USD). SJC thiếu tỉnh nào trong 63 tỉnh thành cũ thì tự thêm dòng "Vàng SJC 1L, 10L, 1KG" chép giá dòng SJC TP. Hồ Chí Minh. Lỗi thì quay về vang.today / PNJ |
 
 **Bạc Phú Quý**: trang Phú Quý không có CORS nên trình duyệt không gọi thẳng được. Workflow
 `.github/workflows/phuquy.yml` chạy `tools/phuquy-fetch.mjs` mỗi 5 phút (GitHub thường trễ thêm vài phút),

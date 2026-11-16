@@ -34,6 +34,8 @@ export const URLS = {
   // Giá bạc Phú Quý: trang gốc không có CORS nên GitHub Actions (.github/workflows/phuquy.yml)
   // lấy giá định kỳ và ghi vào file này trong repo; cùng tên miền nên trình duyệt đọc được.
   phuquy: ['data/phuquy.json'],
+  // Bảng giá vàng đầy đủ các thương hiệu (trang HTML, có CORS *) — bảng chạy chữ ở bang-gia.html đọc bảng #gv-price-body
+  vietnamnet: ['https://dantocphattrien.vietnamnet.vn/gia-vang'],
   // Nhiều mã TradingView trong 1 lần gọi (POST, Content-Type text/plain để không cần preflight CORS)
   tvScan: ['https://scanner.tradingview.com/global/scan'],
   // Giá + thay đổi trong ngày của một mã TradingView (có CORS, không key) — dùng ở bang-gia.html
