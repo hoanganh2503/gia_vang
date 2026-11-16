@@ -404,6 +404,9 @@ const gapOf = (i) => (okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : NaN);
 const gapText = (g) => (Number.isFinite(g) ? `${fmtVND(g / 1000)}K` : '—');
 const chText = (ch) => (!Number.isFinite(ch) ? '' : ch > 0 ? `▲ +${fmtVND(ch)}` : ch < 0 ? `▼ ${fmtVND(-ch)}` : '▲ +0');
 
+// Rút gọn tên nơi bán cho gọn một dòng: (TP.) Hồ Chí Minh → HCM
+const shortPlace = (s) => s.replace(/(TP\.?\s*)?Hồ Chí Minh/gi, 'HCM');
+
 // Dòng của bảng chạy: ưu tiên bảng vietnamnet (đủ thương hiệu); lỗi thì dùng giá vang.today như trước.
 // Mỗi dòng: { key, name, title, buy, sell, changeBuy, changeSell, chBuyText, chSellText }
 function tickerRows() {
@@ -413,7 +416,7 @@ function tickerRows() {
       ...r,
       key: `v${idx}`,
       name: `${r.brand} ${r.name}`.toUpperCase(),
-      brandLabel: r.brand.toUpperCase(), rest: r.name.toUpperCase(),
+      brandLabel: r.brand.toUpperCase(), rest: shortPlace(r.name).toUpperCase(),
       title: `${r.brand} — ${r.name}${r.time ? ` · cập nhật ${r.time}` : ''}`
         + (r.filled ? ` · SJC không niêm yết riêng nơi này, giá chép từ dòng "${r.from}"` : ''),
     }));
