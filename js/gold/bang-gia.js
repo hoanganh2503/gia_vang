@@ -471,25 +471,29 @@ async function refreshLive() {
 // Bấm tab thì đếm lại từ lựa chọn đó.
 const DAY_STEPS = [7, 30, 90, 365];
 const ROTATE_MS = 5 * 1000; // ĐANG TEST: 5 giây/lần. Chạy thật đổi lại 60 * 1000 (1 phút)
-let rotateTimer = null;
-function restartRotate() {
-  clearInterval(rotateTimer);
-  rotateTimer = setInterval(() => {
-    const di = DAY_STEPS.indexOf(days);
-    if (di >= 0 && di < DAY_STEPS.length - 1) {
-      selectChart(typeCode, DAY_STEPS[di + 1]);
-    } else {
-      const ti = TYPES.findIndex((t) => t.code === typeCode);
-      selectChart(TYPES[(ti + 1) % TYPES.length].code, DAY_STEPS[0]);
-    }
-  }, ROTATE_MS);
+// Cách chạy: một nhịp 1 giây riêng (không bị start()/stop() hủy) so giờ hiện tại với mốc rotateAt,
+// quá mốc thì chuyển và đặt mốc mới. Lỗi khi vẽ biểu đồ hay tải dữ liệu không làm dừng việc chuyển tab.
+let rotateAt = Infinity; // đặt mốc khi boot()
+function restartRotate() { rotateAt = Date.now() + ROTATE_MS; }
+function nextChart() {
+  const di = DAY_STEPS.indexOf(Number(days));
+  if (di >= 0 && di < DAY_STEPS.length - 1) return [typeCode, DAY_STEPS[di + 1]];
+  const ti = TYPES.findIndex((t) => t.code === typeCode);
+  return [TYPES[(ti + 1) % TYPES.length].code, DAY_STEPS[0]];
 }
+function rotateTick() {
+  if (document.hidden || Date.now() < rotateAt) return;
+  rotateAt = Date.now() + ROTATE_MS;
+  const [code, d] = nextChart();
+  selectChart(code, d).catch((e) => console.warn('[bang-gia] chuyển biểu đồ lỗi:', e));
+}
+setInterval(() => { try { rotateTick(); } catch (e) { console.warn('[bang-gia] rotateTick:', e); } }, 1000);
 
 async function selectChart(code, d) {
   typeCode = code;
   days = d;
   renderTabs();
-  renderChart();
+  try { renderChart(); } catch (e) { console.warn('[bang-gia] vẽ biểu đồ lỗi:', e); }
   if (!state.hist[code]) {
     await ensureHist(code);
     if (typeCode === code) renderChart();
@@ -500,16 +504,16 @@ function start() {
   stop();
   timers.push(setInterval(tickClock, 1000));
   timers.push(setInterval(refreshLive, LIVE_MS));
-  restartRotate();
   scheduleJitter();
   timers.push(setInterval(refreshFast, REFRESH_MS));
   timers.push(setInterval(refreshSlow, SLOW_REFRESH_MS));
 }
-function stop() { timers.forEach(clearInterval); timers = []; clearInterval(rotateTimer); clearTimeout(jitTimer); }
+function stop() { timers.forEach(clearInterval); timers = []; clearTimeout(jitTimer); }
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { stop(); return; }
   tickClock();
+  restartRotate();
   refreshFast();
   if (Date.now() - lastSlow >= SLOW_REFRESH_MS) refreshSlow();
   start();
@@ -583,6 +587,7 @@ function liveGold(scanXau) {
 }
 
 function boot() {
+  restartRotate();
   connectPaxg();
   tickClock();
   renderTabs();
