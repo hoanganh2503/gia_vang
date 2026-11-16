@@ -177,7 +177,8 @@ function renderQuotes() {
   const tv = state.tv?.data || {};
   const fx = state.fx?.data?.latest;
   // Ưu tiên giá TradingView (cùng nguồn OANDA với biểu đồ nến); lỗi thì dùng gold-api
-  const xau = tv.xau?.close ?? state.spot?.data?.xau?.price;
+  // Giá vàng: OANDA (scanner) bám theo luồng PAXG từng giây (liveGold); dự phòng gold-api
+  const xau = liveGold(tv.xau?.close) ?? state.spot?.data?.xau?.price;
   const xag = tv.xag?.close ?? state.spot?.data?.xag?.price;
 
   // Số chữ số thập phân theo cách TradingView hiển thị: vàng 3, DXY 3, WTI 2, bạc 5
@@ -458,6 +459,7 @@ async function refreshLive() {
   liveBusy = true;
   try {
     const data = await scanTv();
+    updateBasis(data.xau?.close);
     state.tv = { data: { ...(state.tv?.data || {}), ...data }, at: Date.now(), cached: false };
     renderQuotes();
   } catch { /* lượt sau thử lại */ } finally {
@@ -529,7 +531,59 @@ document.addEventListener('click', async (e) => {
   if (d) { selectChart(typeCode, Number(d.dataset.days)); restartRotate(); }
 });
 
+// ---------- Giá vàng theo thời gian thực ----------
+// TradingView scanner chỉ đổi giá OANDA:XAUUSD sau 10–30 giây, còn biểu đồ nến nhận giá liên tục
+// (luồng này TradingView không cho trang ngoài kết nối). Vì vậy giá vàng hiển thị =
+//   giá giữa PAXG/USDT của Binance (websocket, đổi ~10 lần/giây) + độ chênh (basis).
+// Mỗi khi scanner trả giá OANDA mới, basis được đặt lại = OANDA − PAXG lúc đó, nên số luôn bám OANDA
+// và được chỉnh về đúng giá OANDA mỗi lần API cập nhật. Mất luồng Binance thì dùng thẳng giá scanner.
+const PAXG_WS = 'wss://stream.binance.com:9443/ws/paxgusdt@bookTicker';
+const PAXG_STALE_MS = 15000;
+const GOLD_RENDER_MS = 500; // vẽ lại tối đa 2 lần/giây cho dễ nhìn
+let paxgMid = NaN;
+let paxgAt = 0;
+let basis = NaN;
+let lastScanXau = NaN;
+let paxgRetry = 1000;
+let goldRenderPending = false;
+
+function connectPaxg() {
+  let ws;
+  try { ws = new WebSocket(PAXG_WS); } catch { return; }
+  ws.onopen = () => { paxgRetry = 1000; };
+  ws.onmessage = (e) => {
+    let j;
+    try { j = JSON.parse(e.data); } catch { return; }
+    const mid = (Number(j.b) + Number(j.a)) / 2;
+    if (!valid(mid)) return;
+    paxgMid = mid;
+    paxgAt = Date.now();
+    if (!valid(basis) && valid(lastScanXau)) basis = lastScanXau - mid;
+    if (!goldRenderPending) {
+      goldRenderPending = true;
+      setTimeout(() => { goldRenderPending = false; renderQuotes(); }, GOLD_RENDER_MS);
+    }
+  };
+  ws.onclose = () => {
+    setTimeout(connectPaxg, paxgRetry);
+    paxgRetry = Math.min(paxgRetry * 2, 30000);
+  };
+}
+
+// Scanner trả giá OANDA mới → đặt lại độ chênh theo giá PAXG hiện tại
+function updateBasis(scanXau) {
+  if (!valid(scanXau) || scanXau === lastScanXau) return;
+  lastScanXau = scanXau;
+  if (valid(paxgMid) && Date.now() - paxgAt < PAXG_STALE_MS) basis = scanXau - paxgMid;
+}
+
+function liveGold(scanXau) {
+  if (valid(paxgMid) && valid(basis) && Date.now() - paxgAt < PAXG_STALE_MS) return paxgMid + basis;
+  return scanXau;
+}
+
 function boot() {
+  connectPaxg();
   tickClock();
   renderTabs();
   renderIntervals();
