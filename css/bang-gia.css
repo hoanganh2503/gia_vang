@@ -94,9 +94,9 @@ body {
 /* ---------- Cột phải ---------- */
 .board__right { display: grid; grid-template-rows: 1fr 1fr; gap: .5cqw; min-width: 0; min-height: 0; }
 
-/* Bảng chỉ số: 28 / 15 / 15 / 15 / 15 / 12 */
+/* Bảng chỉ số: vàng / quy đổi, DXY, WTI (dồn sát lên) / bạc (to) / Phú Quý */
 .quotes {
-  display: grid; grid-template-rows: 28fr 15fr 15fr 15fr 15fr 12fr;
+  display: grid; grid-template-rows: 28fr 12fr 11fr 11fr 26fr 12fr;
   min-height: 0; overflow: hidden;
   border: .5cqh solid var(--gold);
 }
@@ -130,7 +130,11 @@ body {
 .q--convert { overflow: visible; }
 .q--convert .q__value { font-size: 8cqh; line-height: 1; letter-spacing: -.03em; }
 .q--silver .q__label, .q--silver .q__value { color: var(--down); }
-.q--silver .q__label { letter-spacing: -.02em; }
+.q--silver .q__label { width: auto; font-size: 4.8cqh; letter-spacing: -.02em; }
+/* Bạc thế giới to gấp rưỡi các dòng chỉ số */
+.q--silver .q__value { font-size: 8.7cqh; line-height: 1; letter-spacing: -.03em; }
+.q--silver .q__unit { font-size: 4.35cqh; }
+.q--silver .q__change { display: flex; flex-direction: column; gap: .4cqh; font-size: 3.6cqh; }
 
 /* Bạc Phú Quý: thanh nền xám, 2 ô mua/bán */
 .q--pq { background: #e5e7eb; gap: 1.2cqh; }
