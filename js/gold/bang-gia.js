@@ -164,17 +164,18 @@ function fillSjcProvinces(rows) {
   return spreadBrands([...rows.slice(0, lastSjc + 1), ...filled, ...rows.slice(lastSjc + 1)]);
 }
 
-// Rải đều từng thương hiệu dọc cả bảng (giữ thứ tự trong mỗi thương hiệu), để lúc nào cuộn
-// cũng thấy đủ SJC, BTMC, PNJ, Phú Quý, DOJI…, không phải xem liền vài phút một thương hiệu.
+// SJC đứng liền một loạt ở đầu bảng (không bị xen thương hiệu khác vào giữa);
+// các thương hiệu còn lại rải đều dọc phần sau (giữ thứ tự trong mỗi thương hiệu).
 // Dòng thứ k của thương hiệu có n dòng nằm ở vị trí (k + 0,5) / n, rồi xếp theo vị trí đó.
 function spreadBrands(rows) {
+  const sjc = rows.filter((r) => r.brand === 'SJC');
   const groups = new Map();
-  rows.forEach((r) => { if (!groups.has(r.brand)) groups.set(r.brand, []); groups.get(r.brand).push(r); });
+  rows.filter((r) => r.brand !== 'SJC').forEach((r) => { if (!groups.has(r.brand)) groups.set(r.brand, []); groups.get(r.brand).push(r); });
   const order = [...groups.keys()];
-  return [...groups.values()]
+  return [...sjc, ...[...groups.values()]
     .flatMap((g) => g.map((r, k) => ({ r, pos: (k + 0.5) / g.length, b: order.indexOf(r.brand) })))
     .sort((x, y) => x.pos - y.pos || x.b - y.b)
-    .map((x) => x.r);
+    .map((x) => x.r)];
 }
 
 async function loadVietnamnet() {
@@ -394,8 +395,8 @@ async function ensureHist(code, force = false) {
 // ---------- Bảng giá trong nước tự cuộn (khối dưới) ----------
 const TYPE_ORDER = { sjc_bar: 0, ring_9999: 1, other: 2 };
 const SOURCE_ORDER = ['SJC', 'PNJ TP.HCM', 'PNJ Hà Nội', 'DOJI Hà Nội', 'DOJI TP.HCM', 'DOJI', 'Bảo Tín Minh Châu'];
-const VISIBLE_ROWS = 3;
-const SECONDS_PER_ROW = 3;
+const VISIBLE_ROWS = 4;
+const SECONDS_PER_ROW = 2; // nhanh gấp 1,5 lần so với 3 giây/dòng trước đây
 let tickerKeys = '';
 
 const vnd = (n) => (okPrice(n) ? fmtVND(n) : '—');
@@ -412,6 +413,7 @@ function tickerRows() {
       ...r,
       key: `v${idx}`,
       name: `${r.brand} ${r.name}`.toUpperCase(),
+      brandLabel: r.brand.toUpperCase(), rest: r.name.toUpperCase(),
       title: `${r.brand} — ${r.name}${r.time ? ` · cập nhật ${r.time}` : ''}`
         + (r.filled ? ` · SJC không niêm yết riêng nơi này, giá chép từ dòng "${r.from}"` : ''),
     }));
@@ -443,7 +445,9 @@ function priceCell(key, n, ch, chTxt) {
 function rowHTML(i, idx) {
   const g = gapOf(i);
   return `<div class="t-row${idx % 2 ? ' is-alt' : ''}">
-    <span class="t-name" title="${escapeHTML(i.title)}"><span>${escapeHTML(i.name)}</span></span>
+    <span class="t-name" title="${escapeHTML(i.title)}"><span>${i.brandLabel
+      ? `<b class="t-brand">${escapeHTML(i.brandLabel)}</b>${escapeHTML(i.rest)}`
+      : escapeHTML(i.name)}</span></span>
     ${priceCell(`${i.key}:buy`, i.buy, i.changeBuy, i.chBuyText)}
     ${priceCell(`${i.key}:sell`, i.sell, i.changeSell, i.chSellText)}
     <span class="t-num" data-k="${i.key}:gap" data-v="${Number.isFinite(g) ? g : ''}"><b class="t-p">${gapText(g)}</b></span>
