@@ -199,13 +199,14 @@ body {
   font-size: 14cqh; line-height: 1; letter-spacing: .01em; white-space: nowrap;
   font-stretch: expanded;
 }
-.ticker__head, .t-row { display: grid; grid-template-columns: 46% 22% 22% 10%; }
+.ticker__head, .t-row { display: grid; grid-template-columns: 15% 33% 21% 21% 10%; }
 .ticker__head {
   min-height: 0; background: var(--maroon); color: var(--gold-light);
   font-weight: 900; font-size: 6.5cqh; line-height: 1; text-transform: uppercase;
 }
 .ticker__head span { display: grid; place-items: center; border-left: 1px solid rgb(246 222 141 / .3); }
-.ticker__head span:first-child { border-left: 0; justify-items: start; padding-left: 2cqh; }
+.ticker__head span:nth-child(-n+2) { justify-items: start; padding-left: 2cqh; }
+.ticker__head span:first-child { border-left: 0; }
 
 .ticker__body { position: relative; min-height: 0; overflow: hidden; background: #fff; }
 .t-track { will-change: transform; }
@@ -223,14 +224,14 @@ body {
 }
 .t-row > span:last-child { border-right: 0; }
 /* Tên loại vàng (thương hiệu + loại): cột rộng, chỉ 1 dòng, quá dài thì cắt bằng … */
-.t-name { padding: 0 2cqh; overflow: hidden; }
-.t-row > .t-name { font-size: 8.2cqh; }
-.t-name > span {
+.t-name, .t-brand { padding: 0 2cqh; overflow: hidden; }
+.t-row > .t-name, .t-row > .t-brand { font-size: 8.2cqh; }
+.t-name > span, .t-brand > span {
   display: block; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.1;
 }
 .t-num { justify-content: center; }
-/* Thương hiệu tách hẳn khỏi tên tỉnh/loại vàng bằng một khoảng như tab */
-.t-brand { display: inline-block; min-width: 9ch; margin-right: 2.5cqh; color: var(--maroon); font-weight: 900; }
+/* Cột thương hiệu: màu đỏ nâu cho dễ phân biệt với cột loại vàng */
+.t-row > .t-brand { color: var(--maroon); }
 /* Giá trong bảng chạy: to hơn tên loại vàng (~1,4 lần) */
 .t-row > .t-num { font-size: 10.5cqh; letter-spacing: -.01em; }
 .t-p { font-weight: 900; }

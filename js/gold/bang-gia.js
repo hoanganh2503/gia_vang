@@ -345,7 +345,7 @@ function tickerRows() {
     .map((i) => {
       // Tên + nơi bán, bỏ phần trùng (vd. "Vàng miếng SJC" của SJC → không thêm "SJC" lần nữa)
       const name = (i.name.toUpperCase().includes(i.source.toUpperCase()) ? i.name : `${i.name} ${i.source}`).toUpperCase();
-      return { ...i, key: i.code, name, title: name, chBuyText: chText(i.changeBuy), chSellText: chText(i.changeSell) };
+      return { ...i, key: i.code, name, brandLabel: i.source.toUpperCase(), rest: i.name.toUpperCase(), title: name, chBuyText: chText(i.changeBuy), chSellText: chText(i.changeSell) };
     });
 }
 
@@ -364,9 +364,8 @@ function priceCell(key, n, ch, chTxt) {
 function rowHTML(i, idx) {
   const g = gapOf(i);
   return `<div class="t-row${idx % 2 ? ' is-alt' : ''}">
-    <span class="t-name" title="${escapeHTML(i.title)}"><span>${i.brandLabel
-      ? `<b class="t-brand">${escapeHTML(i.brandLabel)}</b>${escapeHTML(i.rest)}`
-      : escapeHTML(i.name)}</span></span>
+    <span class="t-brand" title="${escapeHTML(i.title)}"><span>${escapeHTML(i.brandLabel)}</span></span>
+    <span class="t-name" title="${escapeHTML(i.title)}"><span>${escapeHTML(i.rest)}</span></span>
     ${priceCell(`${i.key}:buy`, i.buy, i.changeBuy, i.chBuyText)}
     ${priceCell(`${i.key}:sell`, i.sell, i.changeSell, i.chSellText)}
     <span class="t-num" data-k="${i.key}:gap" data-v="${Number.isFinite(g) ? g : ''}"><b class="t-p">${gapText(g)}</b></span>
