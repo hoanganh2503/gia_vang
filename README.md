@@ -48,7 +48,7 @@ css/builder.css  # style riêng của trang tùy chỉnh
 ### Bảng giá màn hình (`bang-gia.html`)
 
 Trang hiển thị kiểu TV (sidebar → **Bảng giá (màn hình)**, mở ngay trong tab hiện tại), khung 2,5 : 1, làm mới mỗi 10 giây.
-Nhấp đúp để bật/tắt toàn màn hình. Mỗi nhãn chỉ số là link tới nguồn của nó.
+Nhấp đúp để bật/tắt toàn màn hình. Mỗi nhãn chỉ số là link tới nguồn của nó. Trang tự tải lại khi có bản deploy mới (kiểm tra mỗi phút), nên màn hình treo không cần bấm F5 sau khi push.
 
 | Chỉ số | Nguồn |
 |---|---|
