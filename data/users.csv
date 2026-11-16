@@ -1,3 +1,4 @@
 username,password_hash,role,status
 admin,pbkdf2_sha256$210000$a9pBo1DCTk5Jmo2nWAInAQ==$UshSzsjvXNTFgaC4ByBzVXATdYRYjeFL42+19kcO2ig=,admin,active
 phamtinh,pbkdf2_sha256$210000$MKeDVdVdujWVMH9FFy81aw==$ivvtlKCFi1pCCwBZk9EwgQ0T2NIRMqqfhXSagNgTs9k=,member,active
+trung,pbkdf2_sha256$210000$n2lK/TRojzZsoAt7lzuScA==$wI675zzlf0Bj1ycmHsFFDC//94tsSAV/lR7Byj18R+g=,member,active
