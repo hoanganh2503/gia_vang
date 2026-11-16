@@ -137,8 +137,8 @@ function setChange(el, diff, pct, d = 2) {
   const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
   const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '■';
   const p = Number.isFinite(pct) ? ` (${pct > 0 ? '+' : pct < 0 ? '−' : ''}${fmtUS(Math.abs(pct))}%)` : '';
-  // Dòng giá vàng, bạc xếp 2 dòng: mũi tên + mức chênh / phần trăm
-  if (el.id === 'c-gold' || el.id === 'c-silver') el.innerHTML = `<span>${arrow} ${signed(diff, d)}</span><span>${p.trim()}</span>`;
+  // Dòng giá vàng xếp 2 dòng: mũi tên + mức chênh / phần trăm
+  if (el.id === 'c-gold') el.innerHTML = `<span>${arrow} ${signed(diff, d)}</span><span>${p.trim()}</span>`;
   else el.textContent = `${arrow} ${signed(diff, d)}${p}`;
   el.className = `${base} ${cls}`;
   el.title = 'So với phiên trước';
