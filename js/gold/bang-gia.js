@@ -467,10 +467,10 @@ async function refreshLive() {
   }
 }
 
-// Biểu đồ trong nước tự chuyển mỗi phút: 7 → 30 → 90 ngày → 1 năm, rồi sang loại vàng kế tiếp, lặp vòng.
-// Bấm tab thì đếm lại 1 phút từ lựa chọn đó.
+// Biểu đồ trong nước tự chuyển sau mỗi ROTATE_MS: 7 → 30 → 90 ngày → 1 năm, rồi sang loại vàng kế tiếp, lặp vòng.
+// Bấm tab thì đếm lại từ lựa chọn đó.
 const DAY_STEPS = [7, 30, 90, 365];
-const ROTATE_MS = 60 * 1000;
+const ROTATE_MS = 5 * 1000; // ĐANG TEST: 5 giây/lần. Chạy thật đổi lại 60 * 1000 (1 phút)
 let rotateTimer = null;
 function restartRotate() {
   clearInterval(rotateTimer);
