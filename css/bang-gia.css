@@ -235,10 +235,10 @@ body {
 /* Giá trong bảng chạy: to hơn tên loại vàng (~1,4 lần) */
 .t-row > .t-num { font-size: 10.5cqh; letter-spacing: -.01em; }
 .t-p { font-weight: 900; color: var(--ink); }
-/* Cột mua/bán: giá luôn màu đen, sát vạch trái, các số thẳng hàng (căn phải trong ô cố định);
+/* Cột mua/bán: giá luôn màu đen, sát vạch trái, giá nằm trong ô rộng cố định nên mức chênh phía sau luôn thẳng hàng;
    mức tăng/giảm nằm phía sau giá, chỉ phần này mang màu xanh/đỏ */
 .t-num.t-px { justify-content: flex-start; padding-left: 1.6cqh; }
-.t-px > .t-p { display: inline-block; flex: none; min-width: 10.5ch; text-align: right; }
+.t-px > .t-p { display: inline-block; flex: none; min-width: 10.5ch; text-align: left; }
 .t-chg { margin-left: 4.5cqh; font-size: 8.3cqh; font-weight: 800; letter-spacing: 0; }
 .t-chg.up { color: var(--up); }
 .t-chg.down { color: var(--down); }
