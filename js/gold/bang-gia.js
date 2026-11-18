@@ -355,7 +355,7 @@ const chgCls = (ch) => (ch > 0 ? 'up' : ch < 0 ? 'down' : 'flat');
 const dayTitle = (ch) => (Number.isFinite(ch) && ch ? `Chênh lệch: ${ch > 0 ? '+' : '−'}${fmtVND(Math.abs(ch))} đ` : 'Không đổi');
 
 function priceCell(key, n, ch, chTxt) {
-  return `<span class="t-num ${dayCls(ch)}" data-k="${key}" data-v="${okPrice(n) ? n : ''}" title="${dayTitle(ch)}">`
+  return `<span class="t-num t-px ${dayCls(ch)}" data-k="${key}" data-v="${okPrice(n) ? n : ''}" title="${dayTitle(ch)}">`
     + `<b class="t-p">${vnd(n)}</b>`
     + (okPrice(n) && chTxt ? `<small class="t-chg ${chgCls(ch)}">${escapeHTML(chTxt)}</small>` : '')
     + '</span>';
