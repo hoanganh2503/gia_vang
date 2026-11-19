@@ -1,38 +1,38 @@
 {
   "success": true,
-  "lastTime": "18:28",
-  "lastDate": "18/11/2026",
+  "lastTime": "11:13",
+  "lastDate": "19/11/2026",
   "items": [
     {
       "name": "BẠC MIẾNG PHÚ QUÝ 999 1 LƯỢNG",
       "unit": "VNĐ/LƯỢNG",
-      "buy": 1400000,
-      "sell": 1443000
+      "buy": 1385000,
+      "sell": 1428000
     },
     {
       "name": "BẠC THỎI PHÚ QUÝ 999 10 LƯỢNG, 5 LƯỢNG",
       "unit": "VNĐ/LƯỢNG",
-      "buy": 1400000,
-      "sell": 1443000
+      "buy": 1385000,
+      "sell": 1428000
     },
     {
       "name": "ĐỒNG BẠC MỸ NGHỆ PHÚ QUÝ 999",
       "unit": "VNĐ/LƯỢNG",
-      "buy": 1400000,
-      "sell": 1647000
+      "buy": 1385000,
+      "sell": 1629000
     },
     {
       "name": "BẠC THỎI PHÚ QUÝ 999 1KILO",
       "unit": "VNĐ/KG",
-      "buy": 37333240,
-      "sell": 38479904
+      "buy": 36933241,
+      "sell": 38079905
     },
     {
       "name": "BẠC 999 (MIẾNG - THANH - THỎI)",
       "unit": "VNĐ/LƯỢNG",
-      "buy": 1357140,
+      "buy": 1342600,
       "sell": null
     }
   ],
-  "fetchedAt": "2026-11-18T16:59:42.768Z"
+  "fetchedAt": "2026-11-19T04:15:52.041Z"
 }
