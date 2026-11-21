@@ -434,7 +434,7 @@ function renderTicker() {
   fitBrandCol();
 }
 
-// Cột thương hiệu rộng vừa sát chữ dài nhất (kể cả tiêu đề "THƯƠNG / HIỆU"); lưu theo cqh để tự co giãn theo khung
+// Cột thương hiệu rộng vừa sát chữ dài nhất (kể cả tiêu đề "THƯƠNG HIỆU", 1 dòng); lưu theo cqh để tự co giãn theo khung
 function fitBrandCol() {
   const ticker = document.querySelector('.ticker');
   const spans = [...document.querySelectorAll('#ticker-body .t-brand > span')];

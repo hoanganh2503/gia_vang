@@ -203,11 +203,11 @@ body {
 .ticker__head, .t-row { display: grid; grid-template-columns: var(--brand-w, 10%) minmax(0, 1fr) 24% 24% 10%; }
 .ticker__head {
   min-height: 0; background: var(--maroon); color: var(--gold-light);
-  font-weight: 900; font-size: 6.5cqh; line-height: 1; text-transform: uppercase;
+  font-weight: 900; font-size: 9.75cqh; line-height: 1; text-transform: uppercase; white-space: nowrap;
 }
 .ticker__head span { display: grid; place-items: center; border-left: 1px solid rgb(246 222 141 / .3); }
 .ticker__head span:nth-child(-n+2) { justify-items: start; padding-left: 2cqh; }
-.ticker__head span:first-child { border-left: 0; padding: 0 1.6cqh; line-height: .9; }
+.ticker__head span:first-child { border-left: 0; padding: 0 1.6cqh; }
 
 .ticker__body { position: relative; min-height: 0; overflow: hidden; background: #fff; }
 .t-track { will-change: transform; }
