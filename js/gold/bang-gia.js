@@ -503,6 +503,12 @@ function scheduleJitter() {
   jitTimer = setTimeout(() => {
     // Mỗi lượt tối đa 1 dòng nhảy, chỉ chọn trong các dòng đã nghỉ đủ lâu.
     // Dòng đang lệch thì lượt của nó đưa về giá thật; dòng đang đúng giá thì lệch ±0.01.
+    // Thị trường đóng (cuối tuần, giờ nghỉ): đưa mọi dòng về giá thật và không nhảy số
+    if (!marketOpen()) {
+      if (Object.values(jit).some((v) => v !== 0)) { Object.keys(jit).forEach((k) => { jit[k] = 0; }); renderQuotes(); }
+      scheduleJitter();
+      return;
+    }
     const now = Date.now();
     const ready = Object.keys(jit).filter((k) => now - (lastChangeAt[JIT_ID[k]] || 0) >= JIT_REST_MS);
     if (ready.length) {
@@ -626,6 +632,7 @@ function connectPaxg() {
     if (!valid(mid)) return;
     paxgMid = mid;
     paxgAt = Date.now();
+    if (!marketOpen()) return; // thị trường đóng: giá vàng đứng yên, không vẽ lại theo PAXG
     if (!valid(basis) && valid(lastScanXau)) basis = lastScanXau - mid;
     if (!goldRenderPending) {
       goldRenderPending = true;
@@ -638,14 +645,32 @@ function connectPaxg() {
   };
 }
 
+// Giờ giao dịch vàng thế giới (OANDA XAUUSD, giờ New York): từ 18:00 Chủ nhật tới 17:00 thứ Sáu,
+// nghỉ 17:00–18:00 mỗi ngày. Ngoài giờ này (cả thứ Bảy, gần hết Chủ nhật giờ VN) biểu đồ nến đứng yên,
+// nên giá trên bảng cũng phải đứng yên: không bám PAXG (chạy 24/7) và không nhảy số giả lập.
+const fNY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', hour12: false });
+function marketOpen(d = new Date()) {
+  const parts = Object.fromEntries(fNY.formatToParts(d).map((p) => [p.type, p.value]));
+  const h = Number(parts.hour) % 24;
+  switch (parts.weekday) {
+    case 'Sat': return false;
+    case 'Sun': return h >= 18;
+    case 'Fri': return h < 17;
+    default: return h !== 17; // thứ Hai–thứ Năm: nghỉ 17:00–18:00
+  }
+}
+
 // Scanner trả giá OANDA mới → đặt lại độ chênh theo giá PAXG hiện tại
 function updateBasis(scanXau) {
+  if (!marketOpen()) return;
   if (!valid(scanXau) || scanXau === lastScanXau) return;
   lastScanXau = scanXau;
   if (valid(paxgMid) && Date.now() - paxgAt < PAXG_STALE_MS) basis = scanXau - paxgMid;
 }
 
 function liveGold(scanXau) {
+  // Đóng cửa: dùng đúng giá đóng cửa của OANDA; xóa độ chênh để lúc mở cửa lại tính mới
+  if (!marketOpen()) { basis = NaN; lastScanXau = NaN; return scanXau; }
   if (valid(paxgMid) && valid(basis) && Date.now() - paxgAt < PAXG_STALE_MS) return paxgMid + basis;
   return scanXau;
 }
