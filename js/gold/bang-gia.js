@@ -503,14 +503,12 @@ function scheduleJitter() {
   jitTimer = setTimeout(() => {
     // Mỗi lượt tối đa 1 dòng nhảy, chỉ chọn trong các dòng đã nghỉ đủ lâu.
     // Dòng đang lệch thì lượt của nó đưa về giá thật; dòng đang đúng giá thì lệch ±0.01.
-    // Thị trường đóng (cuối tuần, giờ nghỉ): đưa mọi dòng về giá thật và không nhảy số
-    if (!marketOpen()) {
-      if (Object.values(jit).some((v) => v !== 0)) { Object.keys(jit).forEach((k) => { jit[k] = 0; }); renderQuotes(); }
-      scheduleJitter();
-      return;
-    }
+    // Thị trường vàng đóng (cuối tuần, giờ nghỉ): riêng dòng quy đổi giá vàng về giá thật và đứng yên;
+    // DXY, WTI, bạc vẫn nhảy bình thường
+    const goldOpen = marketOpen();
+    if (!goldOpen && jit.convert !== 0) { jit.convert = 0; renderQuotes(); }
     const now = Date.now();
-    const ready = Object.keys(jit).filter((k) => now - (lastChangeAt[JIT_ID[k]] || 0) >= JIT_REST_MS);
+    const ready = Object.keys(jit).filter((k) => (goldOpen || k !== 'convert') && now - (lastChangeAt[JIT_ID[k]] || 0) >= JIT_REST_MS);
     if (ready.length) {
       const k = ready[Math.floor(Math.random() * ready.length)];
       jit[k] = jit[k] !== 0 ? 0 : (Math.random() < 0.5 ? -0.01 : 0.01);
