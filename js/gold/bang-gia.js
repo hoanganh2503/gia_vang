@@ -314,7 +314,7 @@ async function ensureHist(code, force = false) {
 // ---------- Bảng giá trong nước tự cuộn (khối dưới) ----------
 const TYPE_ORDER = { sjc_bar: 0, ring_9999: 1, other: 2 };
 const SOURCE_ORDER = ['SJC', 'PNJ TP.HCM', 'PNJ Hà Nội', 'DOJI Hà Nội', 'DOJI TP.HCM', 'DOJI', 'Bảo Tín Minh Châu'];
-const VISIBLE_ROWS = 4;
+const VISIBLE_ROWS = 3;
 const SECONDS_PER_ROW = 2; // nhanh gấp 1,5 lần so với 3 giây/dòng trước đây
 let tickerKeys = '';
 
@@ -322,6 +322,9 @@ const vnd = (n) => (okPrice(n) ? fmtVND(n) : '—');
 const gapOf = (i) => (okPrice(i.buy) && okPrice(i.sell) ? i.sell - i.buy : NaN);
 const gapText = (g) => (Number.isFinite(g) ? `${fmtVND(g / 1000)}K` : '—');
 const chText = (ch) => (!Number.isFinite(ch) ? '' : ch > 0 ? `▲ +${fmtVND(ch)}` : ch < 0 ? `▼ ${fmtVND(-ch)}` : '▲ +0');
+
+// Viết tắt tên thương hiệu dài cho gọn cột (cả cột thương hiệu lẫn loại vàng)
+const abbr = (s) => s.replace(/Bảo\s+Tín\s+Mạnh\s+Hải/giu, 'BTMH').replace(/Bảo\s+Tín\s+Minh\s+Châu/giu, 'BTMC');
 
 // Dòng của bảng chạy: ưu tiên bảng vietnamnet (đủ thương hiệu); lỗi thì dùng giá vang.today như trước.
 // Mỗi dòng: { key, name, title, buy, sell, changeBuy, changeSell, chBuyText, chSellText }
@@ -332,7 +335,7 @@ function tickerRows() {
       ...r,
       key: `v${idx}`,
       name: `${r.brand} ${r.name}`.toUpperCase(),
-      brandLabel: r.brand.toUpperCase(), rest: shortPlace(r.name).toUpperCase(),
+      brandLabel: abbr(r.brand).toUpperCase(), rest: abbr(shortPlace(r.name)).toUpperCase(),
       title: `${r.brand} — ${r.name}${r.time ? ` · cập nhật ${r.time}` : ''}`
         + (r.filled ? ` · SJC không niêm yết riêng nơi này, giá chép từ dòng "${r.from}"` : ''),
     }));
@@ -345,7 +348,7 @@ function tickerRows() {
     .map((i) => {
       // Tên + nơi bán, bỏ phần trùng (vd. "Vàng miếng SJC" của SJC → không thêm "SJC" lần nữa)
       const name = (i.name.toUpperCase().includes(i.source.toUpperCase()) ? i.name : `${i.name} ${i.source}`).toUpperCase();
-      return { ...i, key: i.code, name, brandLabel: i.source.toUpperCase(), rest: i.name.toUpperCase(), title: name, chBuyText: chText(i.changeBuy), chSellText: chText(i.changeSell) };
+      return { ...i, key: i.code, name, brandLabel: abbr(i.source).toUpperCase(), rest: abbr(i.name).toUpperCase(), title: name, chBuyText: chText(i.changeBuy), chSellText: chText(i.changeSell) };
     });
 }
 
@@ -428,6 +431,22 @@ function renderTicker() {
   const loop = rows.length > VISIBLE_ROWS;
   // Lặp vòng: 2 bản sao nối nhau, cuộn đúng 1 bản (−50%) rồi quay về đầu, không thấy chỗ nối
   body.innerHTML = `<div class="t-track${loop ? ' is-loop' : ''}" style="--dur:${rows.length * SECONDS_PER_ROW}s">${list}${loop ? list : ''}</div>`;
+  fitBrandCol();
+}
+
+// Cột thương hiệu rộng vừa sát chữ dài nhất (kể cả tiêu đề "THƯƠNG / HIỆU"); lưu theo cqh để tự co giãn theo khung
+function fitBrandCol() {
+  const ticker = document.querySelector('.ticker');
+  const spans = [...document.querySelectorAll('#ticker-body .t-brand > span')];
+  if (!ticker || !spans.length) return;
+  const range = document.createRange();
+  const textW = (el) => { range.selectNodeContents(el); return range.getBoundingClientRect().width; };
+  const pad = (el) => { const cs = getComputedStyle(el); return parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight); };
+  let w = Math.max(...spans.map((s) => textW(s) + pad(s.parentElement)));
+  const head = $('t-brand-head');
+  if (head) w = Math.max(w, textW(head) + pad(head));
+  const h = ticker.clientHeight;
+  if (h) ticker.style.setProperty('--brand-w', `${((w + 2) / h) * 100}cqh`);
 }
 
 // Tiêu đề: GIÁ VÀNG SÁNG NAY / CHIỀU NAY / TỐI NAY dd/mm/yyyy (giờ Việt Nam)
